@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import axios from 'axios'
 
+import Image from 'next/image'
+
 interface VideoInfo {
   title: string
   thumbnail: string
@@ -177,10 +179,13 @@ export default function VideoDownloader() {
       {videoInfo && (
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 md:p-8 mb-8">
           <div className="flex flex-col md:flex-row gap-6">
-            <img
+            <Image
               src={videoInfo.thumbnail}
               alt={videoInfo.title}
+              width={256}
+              height={144}
               className="w-full md:w-64 h-auto rounded-lg shadow-md"
+              unoptimized
             />
             <div className="flex-1">
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">

@@ -24,7 +24,7 @@ export default function FAQ() {
     },
     {
       question: 'Do you store my downloads?',
-      answer: 'Downloads are temporarily stored on Gofile servers and are available for a limited time. We don\'t permanently store your downloads or track what you download.',
+      answer: 'Downloads are temporarily stored on Gofile servers and are available for a limited time. We don&apos;t permanently store your downloads or track what you download.',
     },
     {
       question: 'How long are downloads available?',
@@ -47,7 +47,7 @@ export default function FAQ() {
           Frequently Asked Questions
         </h2>
         <p className="text-lg text-gray-600 dark:text-gray-300">
-          Got questions? We've got answers.
+          Got questions? We&apos;ve got answers.
         </p>
       </div>
 
