@@ -1,3 +1,5 @@
+import { Typography, Card, CardContent, Box, Avatar } from '@mui/material'
+
 export default function HowToUse() {
   const steps = [
     {
@@ -23,36 +25,57 @@ export default function HowToUse() {
   ]
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-8">
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+    <Box>
+      <Box sx={{ textAlign: 'center', mb: 6 }}>
+        <Typography variant="h3" component="h2" gutterBottom fontWeight={700}>
           How to Use
-        </h2>
-        <p className="text-gray-600 dark:text-gray-300">
+        </Typography>
+        <Typography variant="h6" color="text.secondary">
           Download videos in 4 simple steps
-        </p>
-      </div>
+        </Typography>
+      </Box>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 4 }}>
         {steps.map((step) => (
-          <div
+          <Card
             key={step.number}
-            className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md relative"
+            elevation={2}
+            sx={{
+              height: '100%',
+              position: 'relative',
+              transition: 'transform 0.2s',
+              '&:hover': {
+                transform: 'scale(1.05)',
+              },
+            }}
           >
-            <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg">
-              {step.number}
-            </div>
-            <div className="mt-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            <CardContent sx={{ textAlign: 'center', pt: 5 }}>
+              <Avatar
+                sx={{
+                  width: 56,
+                  height: 56,
+                  bgcolor: 'primary.main',
+                  position: 'absolute',
+                  top: -28,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  fontSize: '1.5rem',
+                  fontWeight: 700,
+                  boxShadow: 4,
+                }}
+              >
+                {step.number}
+              </Avatar>
+              <Typography variant="h6" gutterBottom fontWeight={600} sx={{ mt: 2 }}>
                 {step.title}
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
                 {step.description}
-              </p>
-            </div>
-          </div>
+              </Typography>
+            </CardContent>
+          </Card>
         ))}
-      </div>
-    </div>
+      </Box>
+    </Box>
   )
 }
