@@ -13,19 +13,34 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json()
-    const { url, format } = body
+    const { url, format, preferredFormat, preferredQuality } = body
 
-    if (!url || !format) {
+    if (!url) {
       return NextResponse.json(
-        { error: 'URL and format are required' },
+        { error: 'URL is required' },
         { status: 400 }
       )
+    }
+
+    // Use format if provided, otherwise use preferences
+    let formatString = format
+    if (!formatString && preferredFormat && preferredQuality) {
+      // Build format string based on preferences
+      if (['mp3', 'm4a', 'opus'].includes(preferredFormat)) {
+        // Audio only
+        formatString = `bestaudio[ext=${preferredFormat}]/bestaudio`
+      } else if (preferredQuality === 'best') {
+        formatString = `bestvideo[ext=${preferredFormat}]+bestaudio/best[ext=${preferredFormat}]/best`
+      } else {
+        // Specific quality
+        formatString = `bestvideo[height<=${preferredQuality}][ext=${preferredFormat}]+bestaudio/best[height<=${preferredQuality}][ext=${preferredFormat}]/best`
+      }
     }
 
     // Download the video
     const result = await runYtDlp({
       url,
-      format,
+      format: formatString,
       getInfo: false,
     })
 
