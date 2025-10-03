@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://zadmin-downloader.vercel.app'),
   title: 'ZADMIN Video Downloader - Download Videos in Any Quality',
   description: 'Advanced video downloader supporting YouTube and hundreds of other sites. Download videos in any quality, format, and resolution. Fast, free, and easy to use.',
   keywords: 'video downloader, youtube downloader, download youtube videos, online video downloader, free video downloader, yt-dlp, video download, mp4 downloader, hd video downloader',
