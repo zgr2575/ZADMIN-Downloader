@@ -58,6 +58,27 @@ export default function VideoDownloader() {
     }
   }
 
+  const handleDemo = async () => {
+    setLoading(true)
+    setError('')
+    setVideoInfo(null)
+    setDownloadUrl('')
+    setUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+
+    try {
+      const response = await axios.get('/api/demo')
+      setVideoInfo(response.data)
+      // Select best format by default
+      if (response.data.formats && response.data.formats.length > 0) {
+        setSelectedFormat(response.data.formats[0].format_id)
+      }
+    } catch (err: any) {
+      setError('Failed to load demo data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleDownload = async () => {
     if (!selectedFormat) {
       setError('Please select a format')
@@ -131,6 +152,17 @@ export default function VideoDownloader() {
             ) : (
               'Get Info'
             )}
+          </button>
+        </div>
+
+        {/* Demo Button */}
+        <div className="mt-4 text-center">
+          <button
+            onClick={handleDemo}
+            disabled={loading}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Try Demo (No download required)
           </button>
         </div>
 

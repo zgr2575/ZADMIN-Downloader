@@ -22,8 +22,35 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'ZADMIN Video Downloader',
+    description: 'Advanced video downloader supporting YouTube and hundreds of other sites. Download videos in any quality, format, and resolution.',
+    applicationCategory: 'MultimediaApplication',
+    operatingSystem: 'Web',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+    featureList: [
+      'Download videos from YouTube and 1000+ websites',
+      'Multiple quality options from 144p to 8K',
+      'Support for MP4, WebM, MKV formats',
+      'Audio-only downloads',
+      'Fast and secure',
+    ],
+  }
+
   return (
     <html lang="en">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
+      </head>
       <body className="font-sans antialiased">{children}</body>
     </html>
   )

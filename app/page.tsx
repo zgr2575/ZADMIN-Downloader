@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import VideoDownloader from '@/components/VideoDownloader'
 import Features from '@/components/Features'
+import HowToUse from '@/components/HowToUse'
 import FAQ from '@/components/FAQ'
 
 export default function Home() {
@@ -52,6 +53,11 @@ export default function Home() {
       {/* Features Section */}
       <section id="features" className="bg-white/50 dark:bg-gray-800/50 py-16">
         <Features />
+      </section>
+
+      {/* How to Use Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <HowToUse />
       </section>
 
       {/* FAQ Section */}
