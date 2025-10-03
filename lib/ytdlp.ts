@@ -1,4 +1,5 @@
-import { spawn } from 'child_process'
+import ytdl from '@distube/ytdl-core'
+import * as PlayDL from 'play-dl'
 
 interface YtDlpOptions {
   url: string
@@ -6,72 +7,135 @@ interface YtDlpOptions {
   getInfo?: boolean
 }
 
-export async function runYtDlp(options: YtDlpOptions): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const args: string[] = []
-    
-    if (options.getInfo) {
-      args.push('-J') // Output JSON
-      args.push('--no-warnings')
-      args.push(options.url)
-    } else {
-      args.push('-f', options.format || 'best')
-      args.push('--no-warnings')
-      args.push('-o', '%(title)s.%(ext)s')
-      args.push(options.url)
-    }
-
-    const ytDlp = spawn('yt-dlp', args)
-    let stdout = ''
-    let stderr = ''
-
-    ytDlp.stdout.on('data', (data) => {
-      stdout += data.toString()
-    })
-
-    ytDlp.stderr.on('data', (data) => {
-      stderr += data.toString()
-    })
-
-    ytDlp.on('close', (code) => {
-      if (code !== 0) {
-        reject(new Error(stderr || 'yt-dlp process failed'))
-      } else {
-        if (options.getInfo) {
-          try {
-            resolve(JSON.parse(stdout))
-          } catch (err) {
-            reject(new Error('Failed to parse video info'))
-          }
-        } else {
-          resolve(stdout)
-        }
-      }
-    })
-
-    ytDlp.on('error', (err) => {
-      reject(err)
-    })
-  })
+interface VideoFormat {
+  format_id: string
+  ext: string
+  resolution: string
+  filesize: number | null
+  format_note: string
+  vcodec: string
+  acodec: string
+  fps: number | null
+  url?: string
 }
 
-export function filterFormats(formats: any[]): any[] {
+export async function runYtDlp(options: YtDlpOptions): Promise<any> {
+  const { url, getInfo } = options
+
+  // Determine if it's a YouTube URL
+  const isYouTube = url.includes('youtube.com') || url.includes('youtu.be')
+
+  if (getInfo) {
+    if (isYouTube) {
+      try {
+        const info = await ytdl.getInfo(url)
+        
+        // Transform to consistent format
+        return {
+          title: info.videoDetails.title,
+          thumbnail: info.videoDetails.thumbnails[info.videoDetails.thumbnails.length - 1]?.url || '',
+          duration: parseInt(info.videoDetails.lengthSeconds),
+          uploader: info.videoDetails.author.name,
+          view_count: parseInt(info.videoDetails.viewCount),
+          formats: info.formats.map(f => ({
+            format_id: f.itag?.toString() || 'unknown',
+            ext: f.container || 'unknown',
+            resolution: f.qualityLabel || (f.height ? `${f.width}x${f.height}` : 'audio only'),
+            filesize: f.contentLength ? parseInt(f.contentLength) : null,
+            format_note: f.qualityLabel || f.quality || 'unknown',
+            vcodec: f.hasVideo ? (f.codecs || 'unknown') : 'none',
+            acodec: f.hasAudio ? (f.codecs || 'unknown') : 'none',
+            fps: f.fps || null,
+            url: f.url,
+          })),
+        }
+      } catch (error: any) {
+        throw new Error(`Failed to get video info: ${error.message}`)
+      }
+    } else {
+      // For non-YouTube URLs, use play-dl
+      try {
+        await PlayDL.setToken({
+          soundcloud: {
+            client_id: 'your_client_id_here' // Optional
+          }
+        })
+        
+        const type = await PlayDL.validate(url)
+        
+        if (type === 'yt_video') {
+          const info = await PlayDL.video_info(url)
+          const video = info.video_details
+          
+          return {
+            title: video.title || 'Unknown',
+            thumbnail: video.thumbnails[0]?.url || '',
+            duration: video.durationInSec,
+            uploader: video.channel?.name || 'Unknown',
+            view_count: video.views || 0,
+            formats: [
+              {
+                format_id: 'best',
+                ext: 'mp4',
+                resolution: '720x480',
+                filesize: null,
+                format_note: 'best',
+                vcodec: 'h264',
+                acodec: 'aac',
+                fps: 30,
+              }
+            ],
+          }
+        } else if (type === 'so_track') {
+          const info = await PlayDL.soundcloud(url)
+          
+          if ('thumbnail' in info) {
+            return {
+              title: info.name,
+              thumbnail: info.thumbnail || '',
+              duration: info.durationInSec,
+              uploader: 'user' in info ? info.user.name : 'Unknown',
+              view_count: 'playCount' in info ? info.playCount || 0 : 0,
+              formats: [
+                {
+                  format_id: 'audio',
+                  ext: 'mp3',
+                  resolution: 'audio only',
+                  filesize: null,
+                  format_note: 'audio',
+                  vcodec: 'none',
+                  acodec: 'mp3',
+                  fps: null,
+                }
+              ],
+            }
+          }
+        }
+        
+        throw new Error('Unsupported URL type')
+      } catch (error: any) {
+        throw new Error(`Failed to get video info: ${error.message}`)
+      }
+    }
+  } else {
+    // For download, return the URL
+    if (isYouTube) {
+      const info = await ytdl.getInfo(url)
+      const format = info.formats.find(f => f.itag?.toString() === options.format) || info.formats[0]
+      return { url: format.url, title: info.videoDetails.title, ext: format.container }
+    } else {
+      throw new Error('Download not supported for non-YouTube URLs yet')
+    }
+  }
+}
+
+export function filterFormats(formats: VideoFormat[]): VideoFormat[] {
   // Filter and sort formats for better user experience
   const filtered = formats
     .filter((f) => {
       // Include formats with video or audio
       return (f.vcodec !== 'none' || f.acodec !== 'none')
     })
-    .map((f) => ({
-      format_id: f.format_id,
-      ext: f.ext,
-      resolution: f.resolution || (f.height ? `${f.width}x${f.height}` : 'audio only'),
-      filesize: f.filesize || f.filesize_approx,
-      format_note: f.format_note || f.format,
-      vcodec: f.vcodec || 'none',
-      acodec: f.acodec || 'none',
-      fps: f.fps,
-    }))
     .sort((a, b) => {
       // Sort by quality (higher resolution first)
       const aHeight = parseInt(a.resolution.split('x')[1]) || 0
@@ -79,5 +143,13 @@ export function filterFormats(formats: any[]): any[] {
       return bHeight - aHeight
     })
 
-  return filtered
+  // Remove duplicates and limit
+  const seen = new Set<string>()
+  return filtered.filter(f => {
+    const key = `${f.resolution}-${f.ext}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  }).slice(0, 30)
 }
+

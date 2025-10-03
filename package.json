@@ -17,10 +17,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@distube/ytdl-core": "^4.16.12",
     "@tailwindcss/postcss": "^4.1.14",
     "axios": "^1.12.2",
     "form-data": "^4.0.4",
     "next": "^15.5.4",
+    "play-dl": "^1.9.7",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
