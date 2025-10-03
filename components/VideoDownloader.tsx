@@ -18,7 +18,6 @@ import {
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import DownloadIcon from '@mui/icons-material/Download'
-import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import PersonIcon from '@mui/icons-material/Person'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
@@ -72,26 +71,6 @@ export default function VideoDownloader() {
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to fetch video information')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleDemo = async () => {
-    setLoading(true)
-    setError('')
-    setVideoInfo(null)
-    setDownloadUrl('')
-    setUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
-
-    try {
-      const response = await axios.get('/api/demo')
-      setVideoInfo(response.data)
-      if (response.data.formats && response.data.formats.length > 0) {
-        setSelectedFormat(response.data.formats[0].format_id)
-      }
-    } catch (err: any) {
-      setError('Failed to load demo data')
     } finally {
       setLoading(false)
     }
@@ -155,27 +134,16 @@ export default function VideoDownloader() {
                 startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
               }}
             />
-            <Stack direction="row" spacing={2}>
-              <Button
-                variant="contained"
-                size="large"
-                fullWidth
-                onClick={handleGetInfo}
-                disabled={loading}
-                startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <SearchIcon />}
-              >
-                {loading ? 'Loading...' : 'Get Info'}
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={handleDemo}
-                disabled={loading}
-                startIcon={<PlayArrowIcon />}
-                sx={{ minWidth: 150 }}
-              >
-                Try Demo
-              </Button>
-            </Stack>
+            <Button
+              variant="contained"
+              size="large"
+              fullWidth
+              onClick={handleGetInfo}
+              disabled={loading}
+              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <SearchIcon />}
+            >
+              {loading ? 'Loading...' : 'Get Info'}
+            </Button>
           </Stack>
 
           {error && (

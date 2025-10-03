@@ -28,7 +28,15 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
   if (getInfo) {
     if (isYouTube) {
       try {
-        const info = await ytdl.getInfo(url)
+        // Add options to avoid bot detection
+        const info = await ytdl.getInfo(url, {
+          requestOptions: {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept-Language': 'en-US,en;q=0.9',
+            },
+          },
+        })
         
         // Transform to consistent format
         return {
@@ -120,7 +128,14 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
   } else {
     // For download, return the URL
     if (isYouTube) {
-      const info = await ytdl.getInfo(url)
+      const info = await ytdl.getInfo(url, {
+        requestOptions: {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+          },
+        },
+      })
       const format = info.formats.find(f => f.itag?.toString() === options.format) || info.formats[0]
       return { url: format.url, title: info.videoDetails.title, ext: format.container }
     } else {

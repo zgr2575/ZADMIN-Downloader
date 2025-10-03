@@ -1,10 +1,7 @@
-'use client'
-
-import { useState } from 'react'
+import { Typography, Accordion, AccordionSummary, AccordionDetails, Box } from '@mui/material'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 
 export default function FAQ() {
-  const [openIndex, setOpenIndex] = useState<number | null>(0)
-
   const faqs = [
     {
       question: 'What websites are supported?',
@@ -24,7 +21,7 @@ export default function FAQ() {
     },
     {
       question: 'Do you store my downloads?',
-      answer: 'Downloads are temporarily stored on Gofile servers and are available for a limited time. We don&apos;t permanently store your downloads or track what you download.',
+      answer: 'Downloads are temporarily stored on Gofile servers and are available for a limited time. We don\'t permanently store your downloads or track what you download.',
     },
     {
       question: 'How long are downloads available?',
@@ -41,48 +38,34 @@ export default function FAQ() {
   ]
 
   return (
-    <div>
-      <div className="text-center mb-12">
-        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+    <Box>
+      <Box sx={{ textAlign: 'center', mb: 6 }}>
+        <Typography variant="h3" component="h2" gutterBottom fontWeight={700}>
           Frequently Asked Questions
-        </h2>
-        <p className="text-lg text-gray-600 dark:text-gray-300">
+        </Typography>
+        <Typography variant="h6" color="text.secondary">
           Got questions? We&apos;ve got answers.
-        </p>
-      </div>
+        </Typography>
+      </Box>
 
-      <div className="max-w-3xl mx-auto space-y-4">
+      <Box sx={{ maxWidth: 900, mx: 'auto' }}>
         {faqs.map((faq, index) => (
-          <div
-            key={index}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
-          >
-            <button
-              onClick={() => setOpenIndex(openIndex === index ? null : index)}
-              className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          <Accordion key={index} elevation={2} sx={{ mb: 2 }}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls={`panel${index}-content`}
+              id={`panel${index}-header`}
             >
-              <span className="font-semibold text-gray-900 dark:text-white">
-                {faq.question}
-              </span>
-              <svg
-                className={`w-5 h-5 text-gray-500 transition-transform ${
-                  openIndex === index ? 'transform rotate-180' : ''
-                }`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {openIndex === index && (
-              <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300">
+              <Typography fontWeight={600}>{faq.question}</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography color="text.secondary">
                 {faq.answer}
-              </div>
-            )}
-          </div>
+              </Typography>
+            </AccordionDetails>
+          </Accordion>
         ))}
-      </div>
-    </div>
+      </Box>
+    </Box>
   )
 }
