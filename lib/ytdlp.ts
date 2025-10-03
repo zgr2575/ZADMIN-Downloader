@@ -1,5 +1,9 @@
-import ytdl from '@distube/ytdl-core'
-import * as PlayDL from 'play-dl'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+import path from 'path'
+import fs from 'fs'
+
+const execAsync = promisify(exec)
 
 interface YtDlpOptions {
   url: string
@@ -19,127 +23,84 @@ interface VideoFormat {
   url?: string
 }
 
-export async function runYtDlp(options: YtDlpOptions): Promise<any> {
-  const { url, getInfo } = options
+// Get yt-dlp binary path
+function getYtDlpPath(): string {
+  // Check if yt-dlp is in PATH
+  return 'yt-dlp'
+}
 
-  // Determine if it's a YouTube URL
-  const isYouTube = url.includes('youtube.com') || url.includes('youtu.be')
+export async function runYtDlp(options: YtDlpOptions): Promise<any> {
+  const { url, getInfo, format } = options
+  const ytdlp = getYtDlpPath()
 
   if (getInfo) {
-    if (isYouTube) {
-      try {
-        // Add options to avoid bot detection
-        const info = await ytdl.getInfo(url, {
-          requestOptions: {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept-Language': 'en-US,en;q=0.9',
-            },
-          },
-        })
-        
-        // Transform to consistent format
-        return {
-          title: info.videoDetails.title,
-          thumbnail: info.videoDetails.thumbnails[info.videoDetails.thumbnails.length - 1]?.url || '',
-          duration: parseInt(info.videoDetails.lengthSeconds),
-          uploader: info.videoDetails.author.name,
-          view_count: parseInt(info.videoDetails.viewCount),
-          formats: info.formats.map(f => ({
-            format_id: f.itag?.toString() || 'unknown',
-            ext: f.container || 'unknown',
-            resolution: f.qualityLabel || (f.height ? `${f.width}x${f.height}` : 'audio only'),
-            filesize: f.contentLength ? parseInt(f.contentLength) : null,
-            format_note: f.qualityLabel || f.quality || 'unknown',
-            vcodec: f.hasVideo ? (f.codecs || 'unknown') : 'none',
-            acodec: f.hasAudio ? (f.codecs || 'unknown') : 'none',
-            fps: f.fps || null,
-            url: f.url,
-          })),
-        }
-      } catch (error: any) {
-        throw new Error(`Failed to get video info: ${error.message}`)
+    try {
+      // Get video info in JSON format
+      const { stdout } = await execAsync(`${ytdlp} -J --no-warnings "${url}"`)
+      const info = JSON.parse(stdout)
+      
+      // Transform to consistent format
+      return {
+        title: info.title || 'Unknown',
+        thumbnail: info.thumbnail || info.thumbnails?.[0]?.url || '',
+        duration: info.duration || 0,
+        uploader: info.uploader || info.channel || 'Unknown',
+        view_count: info.view_count || 0,
+        formats: (info.formats || []).map((f: any) => ({
+          format_id: f.format_id || 'unknown',
+          ext: f.ext || 'unknown',
+          resolution: f.resolution || (f.height ? `${f.width}x${f.height}` : 'audio only'),
+          filesize: f.filesize || null,
+          format_note: f.format_note || f.quality || 'unknown',
+          vcodec: f.vcodec || 'none',
+          acodec: f.acodec || 'none',
+          fps: f.fps || null,
+        })),
       }
-    } else {
-      // For non-YouTube URLs, use play-dl
-      try {
-        await PlayDL.setToken({
-          soundcloud: {
-            client_id: 'your_client_id_here' // Optional
-          }
-        })
-        
-        const type = await PlayDL.validate(url)
-        
-        if (type === 'yt_video') {
-          const info = await PlayDL.video_info(url)
-          const video = info.video_details
-          
-          return {
-            title: video.title || 'Unknown',
-            thumbnail: video.thumbnails[0]?.url || '',
-            duration: video.durationInSec,
-            uploader: video.channel?.name || 'Unknown',
-            view_count: video.views || 0,
-            formats: [
-              {
-                format_id: 'best',
-                ext: 'mp4',
-                resolution: '720x480',
-                filesize: null,
-                format_note: 'best',
-                vcodec: 'h264',
-                acodec: 'aac',
-                fps: 30,
-              }
-            ],
-          }
-        } else if (type === 'so_track') {
-          const info = await PlayDL.soundcloud(url)
-          
-          if ('thumbnail' in info) {
-            return {
-              title: info.name,
-              thumbnail: info.thumbnail || '',
-              duration: info.durationInSec,
-              uploader: 'user' in info ? info.user.name : 'Unknown',
-              view_count: 'playCount' in info ? info.playCount || 0 : 0,
-              formats: [
-                {
-                  format_id: 'audio',
-                  ext: 'mp3',
-                  resolution: 'audio only',
-                  filesize: null,
-                  format_note: 'audio',
-                  vcodec: 'none',
-                  acodec: 'mp3',
-                  fps: null,
-                }
-              ],
-            }
-          }
-        }
-        
-        throw new Error('Unsupported URL type')
-      } catch (error: any) {
-        throw new Error(`Failed to get video info: ${error.message}`)
-      }
+    } catch (error: any) {
+      throw new Error(`Failed to get video info: ${error.message}`)
     }
   } else {
-    // For download, return the URL
-    if (isYouTube) {
-      const info = await ytdl.getInfo(url, {
-        requestOptions: {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
-          },
-        },
-      })
-      const format = info.formats.find(f => f.itag?.toString() === options.format) || info.formats[0]
-      return { url: format.url, title: info.videoDetails.title, ext: format.container }
-    } else {
-      throw new Error('Download not supported for non-YouTube URLs yet')
+    // Download the video
+    try {
+      // Create temp directory if it doesn't exist
+      const tempDir = path.join(process.cwd(), 'tmp')
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true })
+      }
+
+      // Get video info first to get the title
+      const { stdout: infoStdout } = await execAsync(`${ytdlp} -J --no-warnings "${url}"`)
+      const info = JSON.parse(infoStdout)
+      const title = info.title || 'video'
+      
+      // Sanitize filename
+      const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase()
+      const timestamp = Date.now()
+      const outputTemplate = path.join(tempDir, `${sanitizedTitle}_${timestamp}.%(ext)s`)
+      
+      // Download with specified format
+      const formatArg = format ? `-f ${format}` : '-f best'
+      const command = `${ytdlp} ${formatArg} -o "${outputTemplate}" --no-warnings "${url}"`
+      
+      await execAsync(command)
+      
+      // Find the downloaded file
+      const files = fs.readdirSync(tempDir).filter(f => f.startsWith(`${sanitizedTitle}_${timestamp}`))
+      if (files.length === 0) {
+        throw new Error('Download failed - file not found')
+      }
+      
+      const filePath = path.join(tempDir, files[0])
+      const ext = path.extname(files[0]).slice(1)
+      
+      return {
+        filePath,
+        title: info.title,
+        ext,
+      }
+    } catch (error: any) {
+      throw new Error(`Failed to download video: ${error.message}`)
     }
   }
 }

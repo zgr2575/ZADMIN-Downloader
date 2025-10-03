@@ -1,32 +1,66 @@
 # ZADMIN Video Downloader 🎥
 
-An advanced, fullstack video downloader application powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [Gofile](https://gofile.io). Download videos from YouTube and 1000+ other websites in any quality, format, and resolution.
+Advanced video downloader application built with Next.js, Material-UI, and yt-dlp. Download videos from YouTube and 1000+ platforms in any quality.
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-38bdf8)
+![Material--UI](https://img.shields.io/badge/Material--UI-7-007FFF)
 ![yt-dlp](https://img.shields.io/badge/yt--dlp-latest-red)
 
-## ✨ Features
+## 🚀 Features
 
-- 🚀 **Lightning Fast**: Optimized download speeds with yt-dlp backend
-- 🎯 **Multiple Formats**: Download in MP4, WebM, MKV, M4A, and more
-- 🎨 **Any Quality**: From 144p to 8K, including 4K and HDR content
-- 🌐 **1000+ Websites**: Support for YouTube, Vimeo, TikTok, Facebook, Instagram, and more
-- 🔒 **Secure & Private**: Downloads processed securely, no tracking
-- 💯 **Free Forever**: No limits, no subscriptions, completely free
-- 📱 **Responsive Design**: Beautiful UI that works on all devices
-- ⚡ **SEO Optimized**: Optimized for search engines with proper meta tags
+- **Multi-Platform Support**: Download from YouTube, Vimeo, TikTok, Facebook, Instagram, Twitter, and 1000+ more
+- **Quality Selection**: Choose from 144p to 8K quality options
+- **Multiple Formats**: MP4, WebM, MKV, M4A, and more
+- **Audio Extraction**: Download audio-only in high quality
+- **Modern UI**: Professional Material Design interface with MUI components
+- **File Hosting**: Automatic upload to Gofile for easy access
+- **SEO Optimized**: Comprehensive meta tags and structured data
 
-## 🚀 Getting Started
+## 📋 Prerequisites
 
-### Prerequisites
+Before running this application, you need to install:
 
-- Node.js 18+ installed
-- Python 3.7+ installed
-- yt-dlp installed (`pip install yt-dlp`)
+1. **Node.js** (v18 or higher)
+2. **yt-dlp** - The video downloader binary
 
-### Installation
+### Installing yt-dlp
+
+#### On Linux/macOS:
+```bash
+# Option 1: Using the provided script
+chmod +x scripts/install-ytdlp.sh
+sudo ./scripts/install-ytdlp.sh
+
+# Option 2: Manual installation with curl
+sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+sudo chmod a+rx /usr/local/bin/yt-dlp
+
+# Option 3: Using pip
+pip install -U yt-dlp
+
+# Option 4: Using Homebrew (macOS)
+brew install yt-dlp
+```
+
+#### On Windows:
+```powershell
+# Option 1: Using the provided script (Run PowerShell as Administrator)
+.\scripts\install-ytdlp.ps1
+
+# Option 2: Using winget
+winget install yt-dlp
+
+# Option 3: Using scoop
+scoop install yt-dlp
+```
+
+### Verify Installation
+```bash
+yt-dlp --version
+```
+
+## 🛠️ Installation
 
 1. Clone the repository:
 ```bash
@@ -39,84 +73,135 @@ cd ZADMIN-Downloader
 npm install
 ```
 
-3. Install yt-dlp (if not already installed):
+3. Build the application:
 ```bash
-pip install yt-dlp
+npm run build
 ```
 
-4. Run the development server:
+4. Start the production server:
+```bash
+npm start
+```
+
+Or run in development mode:
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+The application will be available at `http://localhost:3000`
 
-## 📦 Deployment
+## 🌐 Deployment
 
-### Deploy to Vercel
+### For Development/Demo (Vercel)
+⚠️ **Note**: Vercel's serverless environment doesn't support yt-dlp binary. For production use, deploy to a VPS or container-based hosting.
 
-This application is optimized for Vercel deployment:
+### For Production (Self-Hosted/VPS)
 
-1. Fork or clone this repository
-2. Import the project to Vercel
-3. Vercel will automatically detect Next.js and configure build settings
-4. Ensure yt-dlp is installed in the build process (configured in `vercel.json`)
-5. Deploy!
+1. **Install yt-dlp** on your server (see instructions above)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/zgr2575/ZADMIN-Downloader)
+2. **Deploy the application**:
+```bash
+git clone https://github.com/zgr2575/ZADMIN-Downloader.git
+cd ZADMIN-Downloader
+npm install
+npm run build
+npm start
+```
 
-### Environment Variables
+3. **Using PM2** (recommended for production):
+```bash
+npm install -g pm2
+pm2 start npm --name "zadmin-downloader" -- start
+pm2 save
+pm2 startup
+```
 
-No environment variables are required for basic functionality. The app uses Gofile's public API.
+## 📁 Project Structure
 
-## 🛠️ Technology Stack
+```
+ZADMIN-Downloader/
+├── app/
+│   ├── api/
+│   │   ├── info/          # Video info endpoint
+│   │   ├── download/      # Download endpoint  
+│   │   └── demo/          # Demo data endpoint
+│   ├── layout.tsx         # Root layout with SEO
+│   └── page.tsx           # Home page
+├── components/
+│   ├── VideoDownloader.tsx # Main UI component
+│   ├── Features.tsx       # Features section
+│   ├── HowToUse.tsx       # Usage guide
+│   └── FAQ.tsx            # FAQ section
+├── lib/
+│   ├── ytdlp.ts           # yt-dlp integration
+│   └── gofile.ts          # Gofile API integration
+├── scripts/
+│   ├── install-ytdlp.sh   # Linux/macOS installer
+│   └── install-ytdlp.ps1  # Windows installer
+└── tmp/                   # Temporary download directory
+```
 
-- **Frontend**: Next.js 15, React 18, TypeScript
-- **Styling**: Tailwind CSS
-- **Video Processing**: yt-dlp
-- **File Storage**: Gofile API
-- **Hosting**: Vercel (recommended)
+## 🎯 Usage
 
-## 📖 How It Works
+1. **Paste a video URL** from YouTube or any supported platform
+2. **Click "Get Info"** to fetch video details and available formats
+3. **Select your preferred format** and quality
+4. **Click "Download Video"** to process and upload to Gofile
+5. **Get your download link** from Gofile (valid for 24-48 hours)
 
-1. **User Input**: User pastes a video URL
-2. **Info Retrieval**: The app uses yt-dlp to fetch video information and available formats
-3. **Format Selection**: User selects desired quality and format
-4. **Download**: yt-dlp downloads the video in the selected format
-5. **Upload**: Video is uploaded to Gofile for temporary storage
-6. **Download Link**: User receives a Gofile download link
+## 🔧 Configuration
 
-## 🎯 Supported Websites
+### Environment Variables (Optional)
 
-This app supports all websites that yt-dlp supports, including but not limited to:
+Create a `.env.local` file:
+```env
+# Gofile API token (optional, for extended features)
+GOFILE_API_TOKEN=your_token_here
+```
 
-- YouTube
-- Vimeo
-- TikTok
-- Facebook
-- Instagram
-- Twitter
-- Dailymotion
-- Reddit
-- And 1000+ more!
+## 🐛 Troubleshooting
 
-[See full list of supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
+### "yt-dlp: command not found"
+- Make sure yt-dlp is installed and in your PATH
+- Run `yt-dlp --version` to verify installation
+
+### Download fails
+- Ensure you have write permissions in the `tmp` directory
+- Check that yt-dlp can access the video URL
+- Some videos may be region-locked or require authentication
+
+### Gofile upload fails
+- Check your internet connection
+- Gofile API may be temporarily unavailable
+- Try again after a few moments
+
+## 📝 License
+
+ISC License - See [LICENSE](LICENSE) for details
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines
 
-## 📄 License
+## 📚 Documentation
 
-This project is licensed under the ISC License.
+- [API Documentation](API.md)
+- [Deployment Guide](DEPLOYMENT.md)
+- [yt-dlp Documentation](https://github.com/yt-dlp/yt-dlp)
+- [Gofile API Documentation](https://gofile.io/api)
 
-## ⚠️ Disclaimer
+## ⚡ Technologies
 
-This tool is for educational and personal use only. Please respect copyright laws and only download videos you have the right to download.
+- **Next.js 15** - React framework
+- **Material-UI v7** - Component library
+- **TypeScript** - Type safety
+- **yt-dlp** - Video downloader
+- **Gofile API** - File hosting
 
-## 🙏 Acknowledgments
+## 🌟 Supported Platforms
 
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - The amazing video downloader
-- [Gofile](https://gofile.io) - Free file hosting service
-- [Next.js](https://nextjs.org/) - The React framework
-- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
+YouTube, Vimeo, TikTok, Facebook, Instagram, Twitter/X, Reddit, Dailymotion, Twitch, SoundCloud, and [1000+ more platforms](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
+
+---
+
+**Built with ❤️ using Next.js, Material-UI, and yt-dlp**

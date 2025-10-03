@@ -17,7 +17,10 @@ export async function getGofileServer(): Promise<string> {
   }
 }
 
-export async function uploadToGofile(filePath: string, fileName: string): Promise<string> {
+export async function uploadToGofile(
+  filePath: string, 
+  fileName: string
+): Promise<{ downloadPage: string; downloadUrl: string; fileId: string }> {
   try {
     // Get best server
     const server = await getGofileServer()
@@ -38,7 +41,12 @@ export async function uploadToGofile(filePath: string, fileName: string): Promis
     )
 
     if (response.data.status === 'ok') {
-      return response.data.data.downloadPage
+      const data = response.data.data
+      return {
+        downloadPage: data.downloadPage,
+        downloadUrl: data.downloadPage, // Gofile provides downloadPage which users can visit
+        fileId: data.fileId,
+      }
     }
     
     throw new Error('Upload failed')
