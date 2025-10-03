@@ -58,6 +58,7 @@ export default function VideoDownloader() {
   const [downloadUrl, setDownloadUrl] = useState('')
   const [error, setError] = useState('')
   const [downloadStage, setDownloadStage] = useState('')
+  const [expiresAt, setExpiresAt] = useState('')
 
   const handleGetInfo = async () => {
     if (!url.trim()) {
@@ -69,6 +70,7 @@ export default function VideoDownloader() {
     setError('')
     setVideoInfo(null)
     setDownloadUrl('')
+    setExpiresAt('')
 
     try {
       const response = await axios.post('/api/info', { url })
@@ -92,20 +94,22 @@ export default function VideoDownloader() {
     setDownloading(true)
     setError('')
     setDownloadUrl('')
+    setExpiresAt('')
     setDownloadStage('Preparing download...')
 
     try {
       // Simulate download stages for better UX
-      setTimeout(() => setDownloadStage('Downloading video from server...'), 1000)
-      setTimeout(() => setDownloadStage('Uploading to Gofile storage...'), 3000)
+      setTimeout(() => setDownloadStage('Downloading video...'), 1000)
+      setTimeout(() => setDownloadStage('Preparing your private download link...'), 3000)
       
       const response = await axios.post('/api/download', {
         url,
         format: selectedFormat,
       })
       
-      setDownloadStage('Complete! Generating download link...')
+      setDownloadStage('Complete! Your download is ready...')
       setDownloadUrl(response.data.downloadUrl)
+      setExpiresAt(response.data.expiresAt)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to download video')
     } finally {
@@ -457,17 +461,17 @@ export default function VideoDownloader() {
                 <Typography variant="h5" fontWeight={700} gutterBottom color="success.main">
                   Your Video is Ready! 🎉
                 </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                  Click the button below to download your video from Gofile.
-                  The link will be valid for 24-48 hours.
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 1 }}>
+                  Your private download link has been generated successfully.
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  This link will remain active for 24 hours and can be accessed anytime during this period.
                 </Typography>
                 <Button
                   variant="contained"
                   color="success"
                   size="large"
                   href={downloadUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   startIcon={<DownloadIcon />}
                   sx={{ 
                     py: 1.5,
@@ -476,11 +480,30 @@ export default function VideoDownloader() {
                     fontWeight: 700,
                   }}
                 >
-                  Download from Gofile
+                  Download Now
                 </Button>
-                <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 2 }}>
-                  Your file will open in a new tab with Gofile&apos;s secure download page
-                </Typography>
+                <Box sx={{ mt: 3, p: 2, bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary" display="block" fontWeight={600}>
+                    Your Private Download Link:
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      mt: 1,
+                      p: 1,
+                      bgcolor: 'background.paper',
+                      borderRadius: 1,
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {downloadUrl}
+                  </Typography>
+                  <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
+                    💡 Save this link to download again within 24 hours • Expires: {new Date(expiresAt).toLocaleString()}
+                  </Typography>
+                </Box>
               </Paper>
             )}
           </CardContent>

@@ -14,7 +14,9 @@ Advanced video downloader application built with Next.js, Material-UI, and yt-dl
 - **Multiple Formats**: MP4, WebM, MKV, M4A, and more
 - **Audio Extraction**: Download audio-only in high quality
 - **Modern UI**: Professional Material Design interface with MUI components
-- **File Hosting**: Automatic upload to Gofile for easy access
+- **Private Download Links**: Files are stored on our server with unique 24-hour links
+- **Direct Downloads**: Download files directly from our site, no third-party redirects
+- **Auto-Cleanup**: Expired files are automatically removed after 24 hours
 - **SEO Optimized**: Comprehensive meta tags and structured data
 
 ## 📋 Prerequisites
@@ -124,7 +126,8 @@ ZADMIN-Downloader/
 │   ├── api/
 │   │   ├── info/          # Video info endpoint
 │   │   ├── download/      # Download endpoint  
-│   │   └── demo/          # Demo data endpoint
+│   │   ├── file/[id]/     # File serving endpoint
+│   │   └── cleanup/       # Cleanup expired files
 │   ├── layout.tsx         # Root layout with SEO
 │   └── page.tsx           # Home page
 ├── components/
@@ -134,29 +137,69 @@ ZADMIN-Downloader/
 │   └── FAQ.tsx            # FAQ section
 ├── lib/
 │   ├── ytdlp.ts           # yt-dlp integration
-│   └── gofile.ts          # Gofile API integration
+│   └── gofile.ts          # Gofile API utilities
 ├── scripts/
 │   ├── install-ytdlp.sh   # Linux/macOS installer
 │   └── install-ytdlp.ps1  # Windows installer
-└── tmp/                   # Temporary download directory
+└── tmp/
+    └── downloads/         # Stored downloads (auto-cleanup after 24h)
 ```
 
 ## 🎯 Usage
 
 1. **Paste a video URL** from YouTube or any supported platform
-2. **Click "Get Info"** to fetch video details and available formats
+2. **Click "Get Video Information"** to fetch video details and available formats
 3. **Select your preferred format** and quality
-4. **Click "Download Video"** to process and upload to Gofile
-5. **Get your download link** from Gofile (valid for 24-48 hours)
+4. **Click "Start Download"** to process the video
+5. **Get your private download link** - valid for 24 hours and can be reused within that period
+6. **Download directly from our site** - no third-party redirects
 
 ## 🔧 Configuration
+
+### Automatic Cleanup (Recommended)
+
+To automatically clean up expired files, set up a cron job:
+
+**Linux/macOS:**
+```bash
+# Add to crontab (runs cleanup every hour)
+crontab -e
+
+# Add this line:
+0 * * * * curl http://localhost:3000/api/cleanup
+```
+
+**Or using a systemd timer:**
+```bash
+# Create /etc/systemd/system/zadmin-cleanup.service
+[Unit]
+Description=ZADMIN Downloader Cleanup
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl http://localhost:3000/api/cleanup
+
+# Create /etc/systemd/system/zadmin-cleanup.timer
+[Unit]
+Description=Run ZADMIN cleanup hourly
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target
+
+# Enable and start
+sudo systemctl enable --now zadmin-cleanup.timer
+```
 
 ### Environment Variables (Optional)
 
 Create a `.env.local` file:
 ```env
-# Gofile API token (optional, for extended features)
-GOFILE_API_TOKEN=your_token_here
+# Optional: Set custom cleanup schedule
+CLEANUP_ENABLED=true
 ```
 
 ## 🐛 Troubleshooting
@@ -166,14 +209,19 @@ GOFILE_API_TOKEN=your_token_here
 - Run `yt-dlp --version` to verify installation
 
 ### Download fails
-- Ensure you have write permissions in the `tmp` directory
+- Ensure you have write permissions in the `tmp/downloads` directory
 - Check that yt-dlp can access the video URL
 - Some videos may be region-locked or require authentication
 
-### Gofile upload fails
-- Check your internet connection
-- Gofile API may be temporarily unavailable
-- Try again after a few moments
+### "Download link not found or has expired"
+- Links expire after 24 hours for security
+- Download the video again to generate a new link
+- Ensure the cleanup cron job isn't running too frequently
+
+### Running out of disk space
+- Set up the automatic cleanup cron job (see Configuration)
+- Manually run cleanup: `curl http://localhost:3000/api/cleanup`
+- Check `tmp/downloads/` directory size
 
 ## 📝 License
 
@@ -188,7 +236,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines
 - [API Documentation](API.md)
 - [Deployment Guide](DEPLOYMENT.md)
 - [yt-dlp Documentation](https://github.com/yt-dlp/yt-dlp)
-- [Gofile API Documentation](https://gofile.io/api)
 
 ## ⚡ Technologies
 
@@ -196,7 +243,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines
 - **Material-UI v7** - Component library
 - **TypeScript** - Type safety
 - **yt-dlp** - Video downloader
-- **Gofile API** - File hosting
+- **Node.js File System** - Direct file serving
 
 ## 🌟 Supported Platforms
 

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runYtDlp } from '@/lib/ytdlp'
-import { uploadToGofile } from '@/lib/gofile'
 import fs from 'fs'
+import path from 'path'
+import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -30,19 +31,46 @@ export async function POST(request: NextRequest) {
 
     filePath = result.filePath
 
-    // Upload to Gofile
-    const uploadResult = await uploadToGofile(result.filePath, `${result.title}.${result.ext}`)
-
-    // Clean up the local file
-    if (fs.existsSync(result.filePath)) {
-      fs.unlinkSync(result.filePath)
+    // Create downloads directory if it doesn't exist
+    const downloadsDir = path.join(process.cwd(), 'tmp', 'downloads')
+    if (!fs.existsSync(downloadsDir)) {
+      fs.mkdirSync(downloadsDir, { recursive: true })
     }
 
+    // Generate unique download ID
+    const downloadId = crypto.randomBytes(16).toString('hex')
+    const fileName = `${result.title}.${result.ext}`
+    const newFilePath = path.join(downloadsDir, `${downloadId}.${result.ext}`)
+
+    // Move file to downloads directory
+    fs.renameSync(result.filePath, newFilePath)
+
+    // Calculate expiration (24 hours from now)
+    const expiresAt = new Date()
+    expiresAt.setHours(expiresAt.getHours() + 24)
+
+    // Store metadata
+    const metadata = {
+      downloadId,
+      fileName,
+      filePath: newFilePath,
+      mimeType: getMimeType(result.ext),
+      createdAt: new Date().toISOString(),
+      expiresAt: expiresAt.toISOString(),
+    }
+
+    const metadataPath = path.join(downloadsDir, `${downloadId}.json`)
+    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2))
+
+    // Create download URL for our own server
+    const baseUrl = request.nextUrl.origin
+    const downloadUrl = `${baseUrl}/api/file/${downloadId}`
+
     return NextResponse.json({
-      downloadUrl: uploadResult.downloadPage,
-      directUrl: uploadResult.downloadUrl,
-      fileName: `${result.title}.${result.ext}`,
-      fileId: uploadResult.fileId,
+      downloadUrl,
+      fileName,
+      downloadId,
+      expiresAt: expiresAt.toISOString(),
     })
   } catch (error: any) {
     console.error('Error downloading video:', error)
@@ -61,4 +89,17 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+function getMimeType(ext: string): string {
+  const mimeTypes: Record<string, string> = {
+    'mp4': 'video/mp4',
+    'webm': 'video/webm',
+    'mkv': 'video/x-matroska',
+    'm4a': 'audio/mp4',
+    'mp3': 'audio/mpeg',
+    'opus': 'audio/opus',
+    'flac': 'audio/flac',
+  }
+  return mimeTypes[ext.toLowerCase()] || 'application/octet-stream'
 }
