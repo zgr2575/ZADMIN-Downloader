@@ -11,7 +11,7 @@ export const maxDuration = 300 // 5 minutes timeout
 
 export async function POST(request: NextRequest) {
   let filePath: string | null = null
-  
+
   try {
     const body = await request.json()
     const { url, format, preferredFormat, preferredQuality } = body
