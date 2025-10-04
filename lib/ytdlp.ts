@@ -5,6 +5,14 @@ import fs from 'fs'
 
 const execAsync = promisify(exec)
 
+// Import ytdl-core for Vercel fallback (YouTube only)
+let ytdlCore: any = null
+try {
+  ytdlCore = require('ytdl-core')
+} catch (e) {
+  // ytdl-core not available, will use yt-dlp only
+}
+
 interface YtDlpOptions {
   url: string
   format?: string
@@ -54,6 +62,16 @@ function getYtDlpPath(): string {
 }
 
 export async function runYtDlp(options: YtDlpOptions): Promise<any> {
+  // Check if we're on Vercel and fallback to ytdl-core
+  if (isVercel && ytdlCore) {
+    try {
+      return await runYtdlCoreFallback(options)
+    } catch (fallbackError: any) {
+      // If ytdl-core fails, provide helpful error message
+      throw new Error(`${fallbackError.message}`)
+    }
+  }
+
   const { url, getInfo, format } = options
   const ytdlp = getYtDlpPath()
 
@@ -187,4 +205,101 @@ export function filterFormats(formats: VideoFormat[]): VideoFormat[] {
 
 // Export whether we're running on Vercel (or Vercel-like) environment
 export const isVercel = Boolean(process.env.VERCEL || process.env.VERCEL_URL)
+
+// Check if URL is a YouTube URL
+function isYouTubeUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url)
+    return urlObj.hostname.includes('youtube.com') || urlObj.hostname.includes('youtu.be')
+  } catch {
+    return false
+  }
+}
+
+// Vercel fallback using ytdl-core (YouTube only)
+async function runYtdlCoreFallback(options: YtDlpOptions): Promise<any> {
+  if (!ytdlCore) {
+    throw new Error('ytdl-core is not available. Please install it or use a VPS deployment for full functionality.')
+  }
+
+  const { url, getInfo, format } = options
+
+  if (!isYouTubeUrl(url)) {
+    throw new Error('On Vercel, only YouTube videos are supported. For other platforms, please deploy to a VPS or dedicated server.')
+  }
+
+  try {
+    if (getInfo) {
+      // Get video info
+      const info = await ytdlCore.getInfo(url)
+      
+      // Transform to match yt-dlp format
+      const formats = info.formats.map((f: any) => ({
+        format_id: f.itag?.toString() || 'unknown',
+        ext: f.container || 'unknown',
+        resolution: f.qualityLabel || (f.height ? `${f.width}x${f.height}` : 'audio only'),
+        filesize: f.contentLength ? parseInt(f.contentLength) : null,
+        format_note: f.qualityLabel || 'unknown',
+        vcodec: f.hasVideo ? f.codecs?.split(',')[0] || 'unknown' : 'none',
+        acodec: f.hasAudio ? f.codecs?.split(',')[1] || f.audioCodec || 'unknown' : 'none',
+        fps: f.fps || null,
+      }))
+
+      return {
+        title: info.videoDetails.title || 'Unknown',
+        thumbnail: info.videoDetails.thumbnails?.[info.videoDetails.thumbnails.length - 1]?.url || '',
+        duration: parseInt(info.videoDetails.lengthSeconds) || 0,
+        uploader: info.videoDetails.author?.name || 'Unknown',
+        view_count: parseInt(info.videoDetails.viewCount) || 0,
+        formats,
+      }
+    } else {
+      // Download video
+      const tmpBase = process.env.TMPDIR || process.env.TMP || process.env.TEMP || '/tmp'
+      const tempDir = fs.existsSync(tmpBase) ? tmpBase : path.join(process.cwd(), 'tmp')
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true })
+      }
+
+      // Get info first for title
+      const info = await ytdlCore.getInfo(url)
+      const title = info.videoDetails.title || 'video'
+      const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase()
+      const timestamp = Date.now()
+
+      // Select format
+      let selectedFormat
+      if (format) {
+        // Try to match the requested format
+        selectedFormat = ytdlCore.chooseFormat(info.formats, { quality: format })
+      } else {
+        selectedFormat = ytdlCore.chooseFormat(info.formats, { quality: 'highest' })
+      }
+
+      const ext = selectedFormat.container || 'mp4'
+      const fileName = `${sanitizedTitle}_${timestamp}.${ext}`
+      const filePath = path.join(tempDir, fileName)
+
+      // Download the video
+      await new Promise<void>((resolve, reject) => {
+        const stream = ytdlCore.downloadFromInfo(info, { format: selectedFormat })
+        const writeStream = fs.createWriteStream(filePath)
+        
+        stream.pipe(writeStream)
+        
+        stream.on('error', reject)
+        writeStream.on('error', reject)
+        writeStream.on('finish', () => resolve())
+      })
+
+      return {
+        filePath,
+        title: info.videoDetails.title,
+        ext,
+      }
+    }
+  } catch (error: any) {
+    throw new Error(`Vercel fallback failed: ${error.message}. For full platform support, please deploy to a VPS.`)
+  }
+}
 

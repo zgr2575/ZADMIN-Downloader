@@ -34,6 +34,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import InfoIcon from '@mui/icons-material/Info'
 import SpeedIcon from '@mui/icons-material/Speed'
 import TimerIcon from '@mui/icons-material/Timer'
+import WarningIcon from '@mui/icons-material/Warning'
 
 interface VideoInfo {
   title: string
@@ -81,6 +82,20 @@ export default function VideoDownloader() {
   })
   const [preferredFormat, setPreferredFormat] = useState<string>('mp4')
   const [preferredQuality, setPreferredQuality] = useState<string>('best')
+  const [isVercelEnv, setIsVercelEnv] = useState(false)
+
+  // Check if we're on Vercel on mount
+  useState(() => {
+    const checkVercel = async () => {
+      try {
+        const response = await axios.get('/api/environment')
+        setIsVercelEnv(response.data.isVercel || false)
+      } catch {
+        // Ignore errors, default to false
+      }
+    }
+    checkVercel()
+  })
 
   const handleGetInfo = async () => {
     if (!url.trim()) {
@@ -193,6 +208,23 @@ export default function VideoDownloader() {
 
   return (
     <Box>
+      {/* Vercel Warning */}
+      {isVercelEnv && (
+        <Alert 
+          severity="warning" 
+          icon={<WarningIcon />}
+          sx={{ mb: 3 }}
+        >
+          <Typography variant="body2" fontWeight={600}>
+            Limited Functionality on Vercel
+          </Typography>
+          <Typography variant="caption">
+            Running on Vercel serverless environment. Only YouTube videos are supported. 
+            For full platform support (TikTok, Instagram, etc.), deploy to a VPS or dedicated server.
+          </Typography>
+        </Alert>
+      )}
+
       {/* URL Input Card */}
       <Card 
         elevation={4} 
