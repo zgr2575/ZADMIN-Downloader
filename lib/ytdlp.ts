@@ -25,7 +25,31 @@ interface VideoFormat {
 
 // Get yt-dlp binary path
 function getYtDlpPath(): string {
-  // Check if yt-dlp is in PATH
+  // Priority:
+  // 1. .vercel_build_output/bin/yt-dlp (packaged during build)
+  // 2. /tmp/yt-dlp (downloaded at runtime on serverless)
+  // 3. system PATH 'yt-dlp'
+  const possible = [] as string[]
+  const platformExe = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp'
+  possible.push(require('path').join(process.cwd(), '.vercel_build_output', 'bin', platformExe))
+  possible.push(require('path').join(process.env.TMPDIR || process.env.TMP || process.env.TEMP || '/tmp', platformExe))
+  possible.push(platformExe)
+
+  for (const p of possible) {
+    try {
+      if (p === platformExe) {
+        // rely on PATH
+        const which = require('child_process').spawnSync(p, ['--version'], { encoding: 'utf8' })
+        if (which.status === 0) return p
+      } else if (require('fs').existsSync(p)) {
+        return p
+      }
+    } catch (e) {
+      // ignore and continue
+    }
+  }
+
+  // fallback
   return 'yt-dlp'
 }
 
@@ -63,8 +87,9 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
   } else {
     // Download the video
     try {
-      // Create temp directory if it doesn't exist
-      const tempDir = path.join(process.cwd(), 'tmp')
+      // Use /tmp when running in serverless environments; fall back to repo tmp
+      const tmpBase = process.env.TMPDIR || process.env.TMP || process.env.TEMP || '/tmp'
+      const tempDir = fs.existsSync(tmpBase) ? tmpBase : path.join(process.cwd(), 'tmp')
       if (!fs.existsSync(tempDir)) {
         fs.mkdirSync(tempDir, { recursive: true })
       }
@@ -77,7 +102,7 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
       // Sanitize filename
       const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase()
       const timestamp = Date.now()
-      const outputTemplate = path.join(tempDir, `${sanitizedTitle}_${timestamp}.%(ext)s`)
+  const outputTemplate = path.join(tempDir, `${sanitizedTitle}_${timestamp}.%(ext)s`)
       
       // Download with specified format
       const formatArg = format ? `-f ${format}` : '-f best'
@@ -86,7 +111,7 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
       await execAsync(command)
       
       // Find the downloaded file
-      const files = fs.readdirSync(tempDir).filter(f => f.startsWith(`${sanitizedTitle}_${timestamp}`))
+  const files = fs.readdirSync(tempDir).filter(f => f.startsWith(`${sanitizedTitle}_${timestamp}`))
       if (files.length === 0) {
         throw new Error('Download failed - file not found')
       }
@@ -128,4 +153,7 @@ export function filterFormats(formats: VideoFormat[]): VideoFormat[] {
     return true
   }).slice(0, 30)
 }
+
+// Export whether we're running on Vercel (or Vercel-like) environment
+export const isVercel = Boolean(process.env.VERCEL || process.env.VERCEL_URL)
 

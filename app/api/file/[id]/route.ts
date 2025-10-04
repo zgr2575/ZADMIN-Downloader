@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs'
+import { Readable } from 'stream'
 import path from 'path'
 
 export const dynamic = 'force-dynamic'
@@ -15,8 +16,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params
     
-    // Load download metadata
-    const metadataPath = path.join(process.cwd(), 'tmp', 'downloads', `${id}.json`)
+  // Load download metadata (use serverless-friendly tmp if available)
+  const tmpBase = process.env.TMPDIR || process.env.TMP || process.env.TEMP || '/tmp'
+  const downloadsDir = fs.existsSync(tmpBase) ? path.join(tmpBase, 'zadmin_downloads') : path.join(process.cwd(), 'tmp', 'downloads')
+  const metadataPath = path.join(downloadsDir, `${id}.json`)
     
     if (!fs.existsSync(metadataPath)) {
       return NextResponse.json(
@@ -42,7 +45,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
       )
     }
 
-    // Check if file exists
+    // If this is a remote file (uploaded to Gofile or similar), redirect to the remote URL
+    if (metadata.remote && metadata.filePath && typeof metadata.filePath === 'string') {
+      // metadata.filePath holds the remote download URL
+      return NextResponse.redirect(metadata.filePath)
+    }
+
+    // Check if local file exists
     if (!fs.existsSync(metadata.filePath)) {
       return NextResponse.json(
         { error: 'File not found on server' },
@@ -50,17 +59,19 @@ export async function GET(request: NextRequest, context: RouteContext) {
       )
     }
 
-    // Read the file
-    const fileBuffer = fs.readFileSync(metadata.filePath)
-    
-    // Set appropriate headers for download
-    const headers = new Headers()
-    headers.set('Content-Type', metadata.mimeType || 'application/octet-stream')
-    headers.set('Content-Disposition', `attachment; filename="${metadata.fileName}"`)
-    headers.set('Content-Length', fileBuffer.length.toString())
-    headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
-    
-    return new NextResponse(fileBuffer, {
+    // Stream the file to avoid buffering large files into memory (serverless-friendly)
+    const nodeStream = fs.createReadStream(metadata.filePath)
+
+    // Convert Node stream to Web ReadableStream (Node 18+)
+    const webStream = Readable.toWeb(nodeStream as any) as unknown as BodyInit
+
+    const headers = {
+      'Content-Type': metadata.mimeType || 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${metadata.fileName}"`,
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    }
+
+    return new NextResponse(webStream, {
       status: 200,
       headers,
     })
