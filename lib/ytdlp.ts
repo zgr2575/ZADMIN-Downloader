@@ -59,10 +59,20 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
 
   if (getInfo) {
     try {
-      // Get video info in JSON format
-      const { stdout } = await execAsync(`${ytdlp} -J --no-warnings "${url}"`)
-      const info = JSON.parse(stdout)
-      
+      // Get video info in JSON format. Use -J which returns JSON for single videos or playlists.
+      const { stdout, stderr } = await execAsync(`${ytdlp} -J --no-warnings "${url}"`)
+
+      // Parse JSON and handle playlists (take first entry)
+      let raw: any
+      try {
+        raw = JSON.parse(stdout)
+      } catch (parseErr) {
+        // If parsing failed, include stderr in the error to help debugging
+        throw new Error(`Failed to parse yt-dlp JSON output: ${parseErr.message}. stderr: ${stderr || 'none'}`)
+      }
+
+      const info = Array.isArray(raw?.entries) && raw.entries.length > 0 ? raw.entries[0] : raw
+
       // Transform to consistent format
       return {
         title: info.title || 'Unknown',
@@ -82,7 +92,9 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
         })),
       }
     } catch (error: any) {
-      throw new Error(`Failed to get video info: ${error.message}`)
+      // Surface more context to logs - include stderr when available on the thrown error
+      const msg = error?.message || String(error)
+      throw new Error(`Failed to get video info: ${msg}`)
     }
   } else {
     // Download the video
