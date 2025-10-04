@@ -94,28 +94,18 @@ The application will be available at `http://localhost:3000`
 
 ## 🌐 Deployment
 
-### Vercel (Limited Functionality)
-The application can be deployed to Vercel with **limited functionality**:
+### ⚠️ Vercel Not Supported
 
-**✅ Works on Vercel:**
-- YouTube video downloads
-- Modern UI and interface
-- Format selection for YouTube
+**Vercel deployment is NOT recommended** due to serverless limitations:
 
-**❌ Limitations on Vercel:**
-- **Only YouTube supported** (no TikTok, Instagram, Twitter, etc.)
-- May encounter bot detection issues
-- Limited access to some formats
-- No yt-dlp binary available (uses ytdl-core fallback)
+**❌ Why Vercel Doesn't Work:**
+- Cannot run yt-dlp binary in serverless environment  
+- No persistent file storage for 24-hour download links
+- ytdl-core library fallback is unreliable and frequently breaks (Status 410 errors)
+- Bot detection issues with YouTube
+-no access to 1000+ supported platforms
 
-**To deploy to Vercel:**
-```bash
-npm install -g vercel
-vercel login
-vercel deploy
-```
-
-**💡 For full functionality with all platforms, deploy to a VPS or dedicated server instead.**
+**✅ For full functionality, deploy to a VPS, Railway, or Render instead.**
 
 ### For Production (Self-Hosted/VPS) - **RECOMMENDED**
 
