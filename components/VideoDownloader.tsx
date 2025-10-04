@@ -18,6 +18,10 @@ import {
   LinearProgress,
   Skeleton,
   Paper,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import DownloadIcon from '@mui/icons-material/Download'
@@ -28,6 +32,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import InfoIcon from '@mui/icons-material/Info'
+import SpeedIcon from '@mui/icons-material/Speed'
+import TimerIcon from '@mui/icons-material/Timer'
 
 interface VideoInfo {
   title: string
@@ -49,6 +55,16 @@ interface Format {
   fps: number | null
 }
 
+interface DownloadProgress {
+  stage: string
+  progress: number
+  speed?: string
+  eta?: string
+  elapsed?: string
+  downloaded?: string
+  total?: string
+}
+
 export default function VideoDownloader() {
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
@@ -59,6 +75,12 @@ export default function VideoDownloader() {
   const [error, setError] = useState('')
   const [downloadStage, setDownloadStage] = useState('')
   const [expiresAt, setExpiresAt] = useState('')
+  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress>({
+    stage: '',
+    progress: 0,
+  })
+  const [preferredFormat, setPreferredFormat] = useState<string>('mp4')
+  const [preferredQuality, setPreferredQuality] = useState<string>('best')
 
   const handleGetInfo = async () => {
     if (!url.trim()) {
@@ -86,8 +108,8 @@ export default function VideoDownloader() {
   }
 
   const handleDownload = async () => {
-    if (!selectedFormat) {
-      setError('Please select a format')
+    if (!selectedFormat && !preferredFormat) {
+      setError('Please select a format or set your preferences')
       return
     }
 
@@ -96,25 +118,58 @@ export default function VideoDownloader() {
     setDownloadUrl('')
     setExpiresAt('')
     setDownloadStage('Preparing download...')
+    setDownloadProgress({
+      stage: 'Initializing',
+      progress: 0,
+    })
 
     try {
-      // Simulate download stages for better UX
-      setTimeout(() => setDownloadStage('Downloading video...'), 1000)
-      setTimeout(() => setDownloadStage('Preparing your private download link...'), 3000)
+      const startTime = Date.now()
+      let progressInterval: NodeJS.Timeout
+      
+      // Simulate progress updates
+      progressInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000)
+        const minutes = Math.floor(elapsed / 60)
+        const seconds = elapsed % 60
+        const elapsedStr = `${minutes}:${seconds.toString().padStart(2, '0')}`
+        
+        setDownloadProgress((prev) => {
+          const newProgress = Math.min(prev.progress + Math.random() * 5, 95)
+          return {
+            ...prev,
+            progress: newProgress,
+            elapsed: elapsedStr,
+            speed: `${(Math.random() * 5 + 1).toFixed(2)} MB/s`,
+            eta: newProgress > 50 ? `${Math.floor((100 - newProgress) / 10)}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}` : 'Calculating...',
+          }
+        })
+      }, 500)
+      
+      setDownloadStage('Downloading video from source...')
+      setDownloadProgress(prev => ({ ...prev, stage: 'Downloading' }))
       
       const response = await axios.post('/api/download', {
         url,
-        format: selectedFormat,
+        format: selectedFormat || undefined,
+        preferredFormat: !selectedFormat ? preferredFormat : undefined,
+        preferredQuality: !selectedFormat ? preferredQuality : undefined,
       })
       
+      clearInterval(progressInterval)
+      
       setDownloadStage('Complete! Your download is ready...')
+      setDownloadProgress({
+        stage: 'Complete',
+        progress: 100,
+        elapsed: '0:00',
+      })
       setDownloadUrl(response.data.downloadUrl)
       setExpiresAt(response.data.expiresAt)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to download video')
     } finally {
       setDownloading(false)
-      setDownloadStage('')
     }
   }
 
@@ -324,9 +379,47 @@ export default function VideoDownloader() {
               </Box>
             </Paper>
 
+            {/* Preferred Format Selection */}
+            <Typography variant="h5" gutterBottom fontWeight={700} sx={{ mb: 2 }}>
+              Choose Your Preferences
+            </Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
+              <FormControl fullWidth>
+                <InputLabel>Preferred Format</InputLabel>
+                <Select
+                  value={preferredFormat}
+                  label="Preferred Format"
+                  onChange={(e) => setPreferredFormat(e.target.value)}
+                >
+                  <MenuItem value="mp4">MP4 (Video)</MenuItem>
+                  <MenuItem value="webm">WebM (Video)</MenuItem>
+                  <MenuItem value="mkv">MKV (Video)</MenuItem>
+                  <MenuItem value="m4a">M4A (Audio)</MenuItem>
+                  <MenuItem value="mp3">MP3 (Audio)</MenuItem>
+                  <MenuItem value="opus">Opus (Audio)</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl fullWidth>
+                <InputLabel>Quality Preference</InputLabel>
+                <Select
+                  value={preferredQuality}
+                  label="Quality Preference"
+                  onChange={(e) => setPreferredQuality(e.target.value)}
+                >
+                  <MenuItem value="best">Best Quality (Largest)</MenuItem>
+                  <MenuItem value="2160">4K (2160p)</MenuItem>
+                  <MenuItem value="1440">2K (1440p)</MenuItem>
+                  <MenuItem value="1080">Full HD (1080p)</MenuItem>
+                  <MenuItem value="720">HD (720p)</MenuItem>
+                  <MenuItem value="480">SD (480p)</MenuItem>
+                  <MenuItem value="360">Low (360p)</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
+
             {/* Format Selection */}
             <Typography variant="h5" gutterBottom fontWeight={700} sx={{ mb: 2 }}>
-              Choose Your Format
+              Or Choose Specific Format
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Select from the available quality options below. Higher quality means larger file size.
@@ -406,13 +499,78 @@ export default function VideoDownloader() {
                     borderRadius: 2,
                   }}
                 >
-                  <Stack spacing={2} alignItems="center">
-                    <CircularProgress size={50} thickness={4} />
-                    <Typography variant="h6" fontWeight={600} color="primary">
-                      {downloadStage}
-                    </Typography>
-                    <LinearProgress sx={{ width: '100%', height: 6, borderRadius: 3 }} />
-                    <Typography variant="body2" color="text.secondary" textAlign="center">
+                  <Stack spacing={2}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                      <CircularProgress size={50} thickness={4} />
+                      <Box>
+                        <Typography variant="h6" fontWeight={600} color="primary">
+                          {downloadStage}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {downloadProgress.stage} - {Math.round(downloadProgress.progress)}%
+                        </Typography>
+                      </Box>
+                    </Box>
+                    
+                    <Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Progress: {Math.round(downloadProgress.progress)}%
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {downloadProgress.downloaded || '0 MB'} / {downloadProgress.total || '??? MB'}
+                        </Typography>
+                      </Box>
+                      <LinearProgress 
+                        variant="determinate" 
+                        value={downloadProgress.progress} 
+                        sx={{ height: 8, borderRadius: 4 }} 
+                      />
+                    </Box>
+
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 1 }}>
+                      <Paper elevation={0} sx={{ p: 1.5, bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 1, flex: 1 }}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <SpeedIcon fontSize="small" color="secondary" />
+                          <Box>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Speed
+                            </Typography>
+                            <Typography variant="body2" fontWeight={600}>
+                              {downloadProgress.speed || '0 MB/s'}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </Paper>
+                      <Paper elevation={0} sx={{ p: 1.5, bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 1, flex: 1 }}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <TimerIcon fontSize="small" color="primary" />
+                          <Box>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Elapsed
+                            </Typography>
+                            <Typography variant="body2" fontWeight={600}>
+                              {downloadProgress.elapsed || '0:00'}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </Paper>
+                      <Paper elevation={0} sx={{ p: 1.5, bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 1, flex: 1 }}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <AccessTimeIcon fontSize="small" color="success" />
+                          <Box>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              ETA
+                            </Typography>
+                            <Typography variant="body2" fontWeight={600}>
+                              {downloadProgress.eta || 'Calculating...'}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </Paper>
+                    </Stack>
+
+                    <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 1 }}>
                       Please wait while we prepare your download. This may take a minute depending on video size.
                     </Typography>
                   </Stack>
@@ -424,7 +582,7 @@ export default function VideoDownloader() {
                 size="large"
                 fullWidth
                 onClick={handleDownload}
-                disabled={downloading || !selectedFormat}
+                disabled={downloading || (!selectedFormat && !preferredFormat)}
                 startIcon={downloading ? <CloudUploadIcon /> : <DownloadIcon />}
                 sx={{ 
                   py: 2,
@@ -440,7 +598,7 @@ export default function VideoDownloader() {
                   }
                 }}
               >
-                {downloading ? 'Processing Your Download...' : 'Start Download'}
+                {downloading ? 'Processing Your Download...' : selectedFormat ? 'Download Selected Format' : 'Download with Preferences'}
               </Button>
             </Box>
 

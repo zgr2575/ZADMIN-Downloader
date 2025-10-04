@@ -14,16 +14,31 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json()
-    const { url, format } = body
+    const { url, format, preferredFormat, preferredQuality } = body
 
-    if (!url || !format) {
+    if (!url) {
       return NextResponse.json(
-        { error: 'URL and format are required' },
+        { error: 'URL is required' },
         { status: 400 }
       )
     }
 
-    // If running on Vercel, prefer delegating downloads to an external downloader service
+    // Use format if provided, otherwise use preferences
+    let formatString = format
+    if (!formatString && preferredFormat && preferredQuality) {
+      // Build format string based on preferences
+      if (['mp3', 'm4a', 'opus'].includes(preferredFormat)) {
+        // Audio only
+        formatString = `bestaudio[ext=${preferredFormat}]/bestaudio`
+      } else if (preferredQuality === 'best') {
+        formatString = `bestvideo[ext=${preferredFormat}]+bestaudio/best[ext=${preferredFormat}]/best`
+      } else {
+        // Specific quality
+        formatString = `bestvideo[height<=${preferredQuality}][ext=${preferredFormat}]+bestaudio/best[height<=${preferredQuality}][ext=${preferredFormat}]/best`
+      }
+    }
+
+    // Decide where the download runs: delegate on Vercel if an external downloader is configured
     let result: any
     if (isVercel) {
       const external = process.env.EXTERNAL_DOWNLOADER_URL
@@ -31,15 +46,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'On Vercel: EXTERNAL_DOWNLOADER_URL not configured. Configure an external downloader service or deploy off-server.' }, { status: 503 })
       }
 
-      // Forward request to external downloader
-      const resp = await axios.post(`${external.replace(/\/$/, '')}/download`, { url, format }, { timeout: 0 })
+      // Forward request to external downloader. Send the effective formatString (may be undefined).
+      const resp = await axios.post(`${external.replace(/\/$/, '')}/download`, { url, format: formatString }, { timeout: 0 })
       // Expect the external service to return the same shape: { filePath, title, ext, downloadUrl }
       result = resp.data
     } else {
       // Download the video locally
       result = await runYtDlp({
         url,
-        format,
+        format: formatString,
         getInfo: false,
       })
     }
