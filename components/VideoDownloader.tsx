@@ -211,16 +211,17 @@ export default function VideoDownloader() {
       {/* Vercel Warning */}
       {isVercelEnv && (
         <Alert 
-          severity="warning" 
+          severity="error" 
           icon={<WarningIcon />}
           sx={{ mb: 3 }}
         >
           <Typography variant="body2" fontWeight={600}>
-            Limited Functionality on Vercel
+            ⚠️ Vercel Deployment Not Supported
           </Typography>
           <Typography variant="caption">
-            Running on Vercel serverless environment. Only YouTube videos are supported. 
-            For full platform support (TikTok, Instagram, etc.), deploy to a VPS or dedicated server.
+            This application requires a VPS or dedicated server with yt-dlp binary installed. 
+            Vercel&apos;s serverless environment cannot run yt-dlp. Please deploy to Railway, Render, 
+            or any VPS for full functionality. See README for deployment guides.
           </Typography>
         </Alert>
       )}
