@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { runYtDlp } from '@/lib/ytdlp'
+import { runYtDlp, isVercel } from '@/lib/ytdlp'
+import axios from 'axios'
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
@@ -22,21 +23,69 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Download the video
-    const result = await runYtDlp({
-      url,
-      format,
-      getInfo: false,
-    })
+    // If running on Vercel, prefer delegating downloads to an external downloader service
+    let result: any
+    if (isVercel) {
+      const external = process.env.EXTERNAL_DOWNLOADER_URL
+      if (!external) {
+        return NextResponse.json({ error: 'On Vercel: EXTERNAL_DOWNLOADER_URL not configured. Configure an external downloader service or deploy off-server.' }, { status: 503 })
+      }
 
-    filePath = result.filePath
+      // Forward request to external downloader
+      const resp = await axios.post(`${external.replace(/\/$/, '')}/download`, { url, format }, { timeout: 0 })
+      // Expect the external service to return the same shape: { filePath, title, ext, downloadUrl }
+      result = resp.data
+    } else {
+      // Download the video locally
+      result = await runYtDlp({
+        url,
+        format,
+        getInfo: false,
+      })
+    }
 
-    // Create downloads directory if it doesn't exist
-    const downloadsDir = path.join(process.cwd(), 'tmp', 'downloads')
+    // If the result already includes a remote download URL (e.g., uploaded to Gofile by external service),
+    // don't attempt to move local files. Instead store metadata that points to the remote URL and return it.
+    const tmpBase = process.env.TMPDIR || process.env.TMP || process.env.TEMP || '/tmp'
+    const downloadsDir = fs.existsSync(tmpBase) ? path.join(tmpBase, 'zadmin_downloads') : path.join(process.cwd(), 'tmp', 'downloads')
     if (!fs.existsSync(downloadsDir)) {
       fs.mkdirSync(downloadsDir, { recursive: true })
     }
 
+    // Calculate expiration (24 hours from now)
+    const expiresAt = new Date()
+    expiresAt.setHours(expiresAt.getHours() + 24)
+
+    // If result contains a downloadUrl, treat it as a remote-hosted file (Gofile)
+    if (result && result.downloadUrl) {
+      const downloadId = crypto.randomBytes(16).toString('hex')
+      const fileName = result.fileName || (result.title ? `${result.title}.${result.ext || 'bin'}` : 'file')
+
+      const metadata = {
+        downloadId,
+        fileName,
+        // store remote URL in filePath for backwards compat with metadata shape
+        filePath: result.downloadUrl,
+        remote: true,
+        mimeType: result.mimeType || getMimeType(result.ext || ''),
+        createdAt: new Date().toISOString(),
+        expiresAt: expiresAt.toISOString(),
+      }
+
+      const metadataPath = path.join(downloadsDir, `${downloadId}.json`)
+      fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2))
+
+      // Return the remote download URL directly
+      return NextResponse.json({
+        downloadUrl: result.downloadUrl,
+        fileName,
+        downloadId,
+        expiresAt: expiresAt.toISOString(),
+      })
+    }
+
+    // Otherwise assume a local file was returned and move it into downloadsDir
+    filePath = result.filePath
     // Generate unique download ID
     const downloadId = crypto.randomBytes(16).toString('hex')
     const fileName = `${result.title}.${result.ext}`
@@ -45,11 +94,7 @@ export async function POST(request: NextRequest) {
     // Move file to downloads directory
     fs.renameSync(result.filePath, newFilePath)
 
-    // Calculate expiration (24 hours from now)
-    const expiresAt = new Date()
-    expiresAt.setHours(expiresAt.getHours() + 24)
-
-    // Store metadata
+    // Store metadata for local file
     const metadata = {
       downloadId,
       fileName,
