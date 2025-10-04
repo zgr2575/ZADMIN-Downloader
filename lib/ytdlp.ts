@@ -66,12 +66,29 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
       let raw: any
       try {
         raw = JSON.parse(stdout)
-      } catch (parseErr) {
+      } catch (e: unknown) {
         // If parsing failed, include stderr in the error to help debugging
+        const parseErr = e instanceof Error ? e : new Error(String(e))
         throw new Error(`Failed to parse yt-dlp JSON output: ${parseErr.message}. stderr: ${stderr || 'none'}`)
       }
 
-      const info = Array.isArray(raw?.entries) && raw.entries.length > 0 ? raw.entries[0] : raw
+      let info: any = Array.isArray(raw?.entries) && raw.entries.length > 0 ? raw.entries[0] : raw
+
+      // If info looks incomplete (no title or no formats), try a fallback that disables playlists
+      const looksIncomplete = !info || !info.title || !(info.formats && info.formats.length)
+      if (looksIncomplete) {
+        try {
+          const { stdout: stdout2, stderr: stderr2 } = await execAsync(`${ytdlp} -J --no-warnings --no-playlist "${url}"`)
+          const raw2 = JSON.parse(stdout2)
+          const info2 = Array.isArray(raw2?.entries) && raw2.entries.length > 0 ? raw2.entries[0] : raw2
+          if (info2 && (info2.title || (info2.formats && info2.formats.length))) {
+            info = info2
+          }
+        } catch (fallbackErr) {
+          // Ignore fallback errors - we'll proceed with whatever info we have and surface a helpful error later if needed
+          // Optionally include fallback stderr in logs if available
+        }
+      }
 
       // Transform to consistent format
       return {
