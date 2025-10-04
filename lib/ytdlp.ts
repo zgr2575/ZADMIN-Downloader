@@ -60,7 +60,8 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
   if (getInfo) {
     try {
       // Get video info in JSON format. Use -J which returns JSON for single videos or playlists.
-      const { stdout, stderr } = await execAsync(`${ytdlp} -J --no-warnings "${url}"`)
+  const execOpts = { maxBuffer: 10 * 1024 * 1024 }
+  const { stdout, stderr } = await execAsync(`${ytdlp} -J --no-warnings "${url}"`, execOpts)
 
       // Parse JSON and handle playlists (take first entry)
       let raw: any
@@ -78,7 +79,7 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
       const looksIncomplete = !info || !info.title || !(info.formats && info.formats.length)
       if (looksIncomplete) {
         try {
-          const { stdout: stdout2, stderr: stderr2 } = await execAsync(`${ytdlp} -J --no-warnings --no-playlist "${url}"`)
+          const { stdout: stdout2, stderr: stderr2 } = await execAsync(`${ytdlp} -J --no-warnings --no-playlist "${url}"`, execOpts)
           const raw2 = JSON.parse(stdout2)
           const info2 = Array.isArray(raw2?.entries) && raw2.entries.length > 0 ? raw2.entries[0] : raw2
           if (info2 && (info2.title || (info2.formats && info2.formats.length))) {
@@ -124,7 +125,8 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
       }
 
       // Get video info first to get the title
-      const { stdout: infoStdout } = await execAsync(`${ytdlp} -J --no-warnings "${url}"`)
+  const execOpts = { maxBuffer: 10 * 1024 * 1024 }
+  const { stdout: infoStdout } = await execAsync(`${ytdlp} -J --no-warnings "${url}"`, execOpts)
       const info = JSON.parse(infoStdout)
       const title = info.title || 'video'
       
@@ -137,7 +139,7 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
       const formatArg = format ? `-f ${format}` : '-f best'
       const command = `${ytdlp} ${formatArg} -o "${outputTemplate}" --no-warnings "${url}"`
       
-      await execAsync(command)
+  await execAsync(command, execOpts)
       
       // Find the downloaded file
   const files = fs.readdirSync(tempDir).filter(f => f.startsWith(`${sanitizedTitle}_${timestamp}`))
