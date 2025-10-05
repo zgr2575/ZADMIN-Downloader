@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://zadmin-downloader.vercel.app/sitemap.xml
