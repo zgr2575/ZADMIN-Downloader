@@ -47,8 +47,10 @@ Render is the recommended platform for this application because:
 ### Manual Configuration (if not using render.yaml)
 
 If Render doesn't detect `render.yaml` or you prefer manual setup:
-- **Build Command**: `npm install && chmod +x ./scripts/render-build.sh && ./scripts/render-build.sh`
+- **Build Command**: `npm install --ignore-scripts && chmod +x ./scripts/render-build.sh && ./scripts/render-build.sh`
 - **Start Command**: `npm start`
+
+**Note**: We use `--ignore-scripts` to skip the postinstall script that tries to download yt-dlp binary (which can hang). Instead, the render-build.sh script installs yt-dlp via pip, which is more reliable on Render.
 
 ---
 
@@ -152,47 +154,12 @@ railway init
 railway up
 ```
 
-#### 2. Render
-
-The easiest way to deploy to Render is using the included `render.yaml` configuration file:
-
-**Option 1: Using render.yaml (Recommended)**
-
-1. Create a new Web Service on Render
-2. Connect your GitHub repository
-3. Render will automatically detect the `render.yaml` file
-4. Click "Apply" to use the configuration
-5. Deploy!
-
-The `render.yaml` file automatically:
-- Installs Node.js dependencies
-- Installs yt-dlp via pip
-- Builds the Next.js application
-- Configures the start command
-
-**Option 2: Manual Configuration**
-
-If you prefer manual setup:
-1. Create a new Web Service
-2. Connect your GitHub repository
-3. Configure the following:
-   - **Build Command**: `npm install && chmod +x ./scripts/render-build.sh && ./scripts/render-build.sh`
-   - **Start Command**: `npm start`
-   - **Environment**: Node
-
-The build script (`scripts/render-build.sh`) handles:
-- Installing yt-dlp via pip (more reliable than downloading binary)
-- Building the Next.js app
-- Verifying the installation
-
-**Note**: Render provides Python by default, so yt-dlp installation via pip works seamlessly.
-
-#### 3. DigitalOcean App Platform
+#### 2. DigitalOcean App Platform
 - Import from GitHub
 - Select Node.js
 - Configure build and run commands
 
-#### 4. Self-hosted (VPS)
+#### 3. Self-hosted (VPS)
 ```bash
 # Install Node.js and Python
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
