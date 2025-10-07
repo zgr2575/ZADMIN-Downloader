@@ -166,7 +166,6 @@ ZADMIN-Downloader/
 ├── scripts/
 │   ├── install-ytdlp.sh   # Linux/macOS installer
 │   ├── install-ytdlp.ps1  # Windows installer
-│   ├── render-build.sh    # Render deployment build script
 │   └── fetch-ytdlp.js     # Download yt-dlp binary (postinstall)
 ├── render.yaml            # Render.com deployment configuration
 └── tmp/

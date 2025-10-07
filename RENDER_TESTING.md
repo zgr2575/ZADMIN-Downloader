@@ -7,10 +7,9 @@ This document helps verify that the Render deployment works correctly.
 The issue was that yt-dlp wasn't automatically installing on Render. This was fixed by:
 
 1. **Created `render.yaml`**: Automatic configuration file that Render detects
-2. **Created `scripts/render-build.sh`**: Custom build script that:
+2. **Added `render:build` npm script**: Custom npm script in package.json that:
    - Installs yt-dlp via pip (Python package manager)
    - Builds the Next.js application
-   - Verifies installation
 3. **Updated build command**: Uses `npm install --ignore-scripts` to skip the problematic postinstall script that downloads yt-dlp binary (which was hanging)
 4. **Updated documentation**: Added comprehensive Render deployment instructions
 
@@ -20,12 +19,10 @@ The issue was that yt-dlp wasn't automatically installing on Render. This was fi
 
 1. Render detects `render.yaml` in the repository root
 2. Runs: `npm install --ignore-scripts` - Installs Node.js dependencies without running postinstall
-3. Runs: `chmod +x ./scripts/render-build.sh` - Makes build script executable
-4. Runs: `./scripts/render-build.sh` which:
+3. Runs: `npm run render:build` which:
    - Installs yt-dlp using `pip3 install --user yt-dlp`
-   - Verifies yt-dlp is installed and working
    - Runs `npm run build` to build the Next.js app
-5. Starts the app with: `npm start`
+4. Starts the app with: `npm start`
 
 ### Why This Solution Works
 
@@ -33,20 +30,21 @@ The issue was that yt-dlp wasn't automatically installing on Render. This was fi
 - **pip installation is reliable**: Unlike downloading binaries which can hang
 - **--ignore-scripts flag**: Prevents the problematic postinstall script from running
 - **--user flag for pip**: Installs yt-dlp in user space (no root required)
+- **npm script approach**: Keeps everything in the Node.js ecosystem, more idiomatic
 
 ## Testing Checklist
 
 ### Pre-Deployment
 - [x] `render.yaml` exists and is properly formatted
-- [x] `scripts/render-build.sh` exists and is executable
+- [x] `render:build` npm script exists in package.json
 - [x] Build script installs yt-dlp via pip
 - [x] Build script runs `npm run build`
 - [x] Documentation updated in DEPLOYMENT.md and README.md
 
 ### Local Testing (Simulating Render Build)
 - [x] `npm install --ignore-scripts` completes without hanging
-- [x] `./scripts/render-build.sh` successfully installs yt-dlp
-- [x] `./scripts/render-build.sh` successfully builds the Next.js app
+- [x] `npm run render:build` successfully installs yt-dlp
+- [x] `npm run render:build` successfully builds the Next.js app
 - [x] `yt-dlp --version` shows version number
 - [x] Build creates `.next/` directory with all required files
 
@@ -70,10 +68,17 @@ You should see output similar to:
 added 412 packages in 13s
 
 ==> Running build command
-Installing yt-dlp via pip...
-Requirement already satisfied: yt-dlp in /opt/render/.local/lib/python3.X/site-packages (2025.X.XX)
-yt-dlp installed successfully: 2025.X.XX
-Building Next.js application...
+==> npm run render:build
+
+> zadmin-downloader@1.0.0 render:build
+> pip3 install --user yt-dlp && npm run build
+
+Collecting yt-dlp
+Successfully installed yt-dlp-2025.X.XX
+
+> zadmin-downloader@1.0.0 build
+> next build
+
 ▲ Next.js 15.5.4
 Creating an optimized production build ...
 ✓ Compiled successfully
@@ -100,9 +105,9 @@ Build complete!
 ## Files Changed
 
 - `render.yaml` - New file (Render configuration)
-- `scripts/render-build.sh` - New file (Build script for Render)
+- `package.json` - Added `render:build` npm script
 - `DEPLOYMENT.md` - Updated with Render instructions
-- `README.md` - Updated to recommend Render and document new files
+- `README.md` - Updated to recommend Render and document configuration
 
 ## Migration Notes
 
@@ -114,6 +119,6 @@ If you previously deployed to Render manually:
 
 Or update your existing service:
 1. Go to service settings
-2. Update build command to: `npm install --ignore-scripts && chmod +x ./scripts/render-build.sh && ./scripts/render-build.sh`
+2. Update build command to: `npm install --ignore-scripts && npm run render:build`
 3. Update start command to: `npm start`
 4. Trigger a manual deploy

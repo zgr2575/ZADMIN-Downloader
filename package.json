@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "postinstall": "node ./scripts/fetch-ytdlp.js",
+    "render:build": "pip3 install --user yt-dlp && npm run build",
     "lint": "next lint"
   },
   "keywords": [

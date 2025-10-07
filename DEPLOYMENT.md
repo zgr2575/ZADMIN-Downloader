@@ -47,10 +47,10 @@ Render is the recommended platform for this application because:
 ### Manual Configuration (if not using render.yaml)
 
 If Render doesn't detect `render.yaml` or you prefer manual setup:
-- **Build Command**: `npm install --ignore-scripts && chmod +x ./scripts/render-build.sh && ./scripts/render-build.sh`
+- **Build Command**: `npm install --ignore-scripts && npm run render:build`
 - **Start Command**: `npm start`
 
-**Note**: We use `--ignore-scripts` to skip the postinstall script that tries to download yt-dlp binary (which can hang). Instead, the render-build.sh script installs yt-dlp via pip, which is more reliable on Render.
+**Note**: We use `--ignore-scripts` to skip the postinstall script that tries to download yt-dlp binary (which can hang). Instead, the `render:build` npm script installs yt-dlp via pip, which is more reliable on Render.
 
 ---
 
