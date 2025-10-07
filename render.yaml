@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: zadmin-downloader
+    env: node
+    buildCommand: npm install && chmod +x ./scripts/render-build.sh && ./scripts/render-build.sh
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 18

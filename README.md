@@ -103,11 +103,26 @@ The application will be available at `http://localhost:3000`
 - No persistent file storage for 24-hour download links
 - ytdl-core library fallback is unreliable and frequently breaks (Status 410 errors)
 - Bot detection issues with YouTube
--no access to 1000+ supported platforms
+- No access to 1000+ supported platforms
 
-**✅ For full functionality, deploy to a VPS, Railway, or Render instead.**
+**✅ For full functionality, deploy to Render (recommended), Railway, or a VPS instead.**
 
-### For Production (Self-Hosted/VPS) - **RECOMMENDED**
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+
+### Quick Deploy to Render (Recommended)
+
+The easiest way to deploy this application:
+
+1. Push your code to GitHub
+2. Go to [Render Dashboard](https://dashboard.render.com)
+3. Click "New +" → "Web Service"
+4. Connect your repository
+5. Render will auto-detect `render.yaml` and configure everything
+6. Click "Create Web Service"
+
+That's it! The `render.yaml` file handles all the setup including yt-dlp installation.
+
+### For Production (Self-Hosted/VPS)
 
 1. **Install yt-dlp** on your server (see instructions above)
 

@@ -1,5 +1,57 @@
 # Deployment Guide
 
+## Quick Start: Recommended Platforms
+
+For the best experience with full yt-dlp functionality, we recommend:
+
+1. **Render** (Easiest) - Includes `render.yaml` for one-click deployment
+2. **Railway** - Simple deployment with good Node.js support  
+3. **Self-hosted VPS** - Full control and no limitations
+
+**Note**: Vercel is not recommended for production due to serverless limitations with yt-dlp binary execution.
+
+---
+
+## Deploying to Render (Recommended)
+
+Render is the recommended platform for this application because:
+- Python is available by default (needed for yt-dlp)
+- No serverless limitations
+- Simple configuration with `render.yaml`
+- Free tier available
+
+### Prerequisites
+- A Render account (sign up at https://render.com)
+- Your code pushed to GitHub
+
+### Deployment Steps
+
+1. **Push your code to GitHub** (if not already done)
+
+2. **Create a Web Service on Render**:
+   - Go to https://dashboard.render.com
+   - Click "New +" and select "Web Service"
+   - Connect your GitHub repository
+   - Select the `zgr2575/ZADMIN-Downloader` repository
+
+3. **Configure the service**:
+   - Render will automatically detect the `render.yaml` file
+   - Review the configuration and click "Apply"
+   - Click "Create Web Service"
+
+4. **Wait for deployment**:
+   - Render will automatically install dependencies and yt-dlp
+   - The build logs will show the yt-dlp installation
+   - Once complete, your app will be live!
+
+### Manual Configuration (if not using render.yaml)
+
+If Render doesn't detect `render.yaml` or you prefer manual setup:
+- **Build Command**: `npm install && chmod +x ./scripts/render-build.sh && ./scripts/render-build.sh`
+- **Start Command**: `npm start`
+
+---
+
 ## Deploying to Vercel
 
 ### Prerequisites
@@ -101,10 +153,39 @@ railway up
 ```
 
 #### 2. Render
-- Create a new Web Service
-- Connect your GitHub repository
-- Set build command: `npm install && npm run build`
-- Set start command: `npm start`
+
+The easiest way to deploy to Render is using the included `render.yaml` configuration file:
+
+**Option 1: Using render.yaml (Recommended)**
+
+1. Create a new Web Service on Render
+2. Connect your GitHub repository
+3. Render will automatically detect the `render.yaml` file
+4. Click "Apply" to use the configuration
+5. Deploy!
+
+The `render.yaml` file automatically:
+- Installs Node.js dependencies
+- Installs yt-dlp via pip
+- Builds the Next.js application
+- Configures the start command
+
+**Option 2: Manual Configuration**
+
+If you prefer manual setup:
+1. Create a new Web Service
+2. Connect your GitHub repository
+3. Configure the following:
+   - **Build Command**: `npm install && chmod +x ./scripts/render-build.sh && ./scripts/render-build.sh`
+   - **Start Command**: `npm start`
+   - **Environment**: Node
+
+The build script (`scripts/render-build.sh`) handles:
+- Installing yt-dlp via pip (more reliable than downloading binary)
+- Building the Next.js app
+- Verifying the installation
+
+**Note**: Render provides Python by default, so yt-dlp installation via pip works seamlessly.
 
 #### 3. DigitalOcean App Platform
 - Import from GitHub
