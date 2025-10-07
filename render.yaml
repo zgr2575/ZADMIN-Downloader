@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: zadmin-downloader
+    env: node
+    buildCommand: npm install --ignore-scripts && npm run render:build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 18

@@ -1,5 +1,59 @@
 # Deployment Guide
 
+## Quick Start: Recommended Platforms
+
+For the best experience with full yt-dlp functionality, we recommend:
+
+1. **Render** (Easiest) - Includes `render.yaml` for one-click deployment
+2. **Railway** - Simple deployment with good Node.js support  
+3. **Self-hosted VPS** - Full control and no limitations
+
+**Note**: Vercel is not recommended for production due to serverless limitations with yt-dlp binary execution.
+
+---
+
+## Deploying to Render (Recommended)
+
+Render is the recommended platform for this application because:
+- Python is available by default (needed for yt-dlp)
+- No serverless limitations
+- Simple configuration with `render.yaml`
+- Free tier available
+
+### Prerequisites
+- A Render account (sign up at https://render.com)
+- Your code pushed to GitHub
+
+### Deployment Steps
+
+1. **Push your code to GitHub** (if not already done)
+
+2. **Create a Web Service on Render**:
+   - Go to https://dashboard.render.com
+   - Click "New +" and select "Web Service"
+   - Connect your GitHub repository
+   - Select the `zgr2575/ZADMIN-Downloader` repository
+
+3. **Configure the service**:
+   - Render will automatically detect the `render.yaml` file
+   - Review the configuration and click "Apply"
+   - Click "Create Web Service"
+
+4. **Wait for deployment**:
+   - Render will automatically install dependencies and yt-dlp
+   - The build logs will show the yt-dlp installation
+   - Once complete, your app will be live!
+
+### Manual Configuration (if not using render.yaml)
+
+If Render doesn't detect `render.yaml` or you prefer manual setup:
+- **Build Command**: `npm install --ignore-scripts && npm run render:build`
+- **Start Command**: `npm start`
+
+**Note**: We use `--ignore-scripts` to skip the postinstall script that tries to download yt-dlp binary (which can hang). Instead, the `render:build` npm script installs yt-dlp via pip, which is more reliable on Render.
+
+---
+
 ## Deploying to Vercel
 
 ### Prerequisites
@@ -100,18 +154,12 @@ railway init
 railway up
 ```
 
-#### 2. Render
-- Create a new Web Service
-- Connect your GitHub repository
-- Set build command: `npm install && npm run build`
-- Set start command: `npm start`
-
-#### 3. DigitalOcean App Platform
+#### 2. DigitalOcean App Platform
 - Import from GitHub
 - Select Node.js
 - Configure build and run commands
 
-#### 4. Self-hosted (VPS)
+#### 3. Self-hosted (VPS)
 ```bash
 # Install Node.js and Python
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
