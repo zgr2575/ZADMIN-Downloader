@@ -1,6 +1,9 @@
-import { spawn } from 'child_process'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 import path from 'path'
 import fs from 'fs'
+
+const execAsync = promisify(exec)
 
 // Note: ytdl-core fallback removed due to reliability issues
 // Vercel deployment is not recommended for production use
@@ -27,15 +30,9 @@ interface VideoFormat {
 // Get yt-dlp binary path
 function getYtDlpPath(): string {
   // Priority:
-  // 1. YTDLP_PATH environment variable (for pm2 and production deployments)
-  // 2. .vercel_build_output/bin/yt-dlp (packaged during build)
-  // 3. /tmp/yt-dlp (downloaded at runtime on serverless)
-  // 4. system PATH 'yt-dlp'
-  
-  if (process.env.YTDLP_PATH) {
-    return process.env.YTDLP_PATH
-  }
-
+  // 1. .vercel_build_output/bin/yt-dlp (packaged during build)
+  // 2. /tmp/yt-dlp (downloaded at runtime on serverless)
+  // 3. system PATH 'yt-dlp'
   const possible = [] as string[]
   const platformExe = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp'
   possible.push(require('path').join(process.cwd(), '.vercel_build_output', 'bin', platformExe))
@@ -60,88 +57,6 @@ function getYtDlpPath(): string {
   return 'yt-dlp'
 }
 
-/**
- * Robust yt-dlp runner using spawn to avoid buffer truncation
- * Collects stdout/stderr fully and parses JSON only after process exits
- */
-async function spawnYtDlp(args: string[], timeoutMs: number = 30000): Promise<{ stdout: string; stderr: string }> {
-  const ytdlpPath = getYtDlpPath()
-  
-  return new Promise((resolve, reject) => {
-    const stdoutChunks: Buffer[] = []
-    const stderrChunks: Buffer[] = []
-    
-    const child = spawn(ytdlpPath, args, {
-      env: process.env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-    
-    let timedOut = false
-    const timeout = setTimeout(() => {
-      timedOut = true
-      child.kill('SIGTERM')
-      setTimeout(() => {
-        if (!child.killed) {
-          child.kill('SIGKILL')
-        }
-      }, 5000)
-    }, timeoutMs)
-    
-    child.stdout.on('data', (chunk: Buffer) => {
-      stdoutChunks.push(chunk)
-    })
-    
-    child.stderr.on('data', (chunk: Buffer) => {
-      stderrChunks.push(chunk)
-    })
-    
-    child.on('close', (code, signal) => {
-      clearTimeout(timeout)
-      
-      const stdout = Buffer.concat(stdoutChunks).toString('utf8')
-      const stderr = Buffer.concat(stderrChunks).toString('utf8')
-      
-      if (timedOut) {
-        const errMsg = `yt-dlp timed out after ${timeoutMs}ms. stdout length: ${stdout.length}, stderr length: ${stderr.length}`
-        console.error(`[ytdlp] ${errMsg}`)
-        if (stderr.length > 0) {
-          console.error(`[ytdlp] stderr snippet: ${stderr.slice(0, 500)}`)
-        }
-        reject(new Error(errMsg + (stderr ? `. stderr snippet: ${stderr.slice(0, 200)}` : '')))
-        return
-      }
-      
-      if (code !== 0) {
-        const errMsg = `yt-dlp exited with code ${code}${signal ? ` (signal: ${signal})` : ''}. stdout length: ${stdout.length}, stderr length: ${stderr.length}`
-        console.error(`[ytdlp] ${errMsg}`)
-        if (stderr.length > 0) {
-          console.error(`[ytdlp] stderr snippet: ${stderr.slice(0, 500)}`)
-        }
-        reject(new Error(errMsg + (stderr ? `. stderr snippet: ${stderr.slice(0, 200)}` : '')))
-        return
-      }
-      
-      if (stdout.length === 0) {
-        const errMsg = `yt-dlp produced empty stdout. stderr length: ${stderr.length}`
-        console.error(`[ytdlp] ${errMsg}`)
-        if (stderr.length > 0) {
-          console.error(`[ytdlp] stderr snippet: ${stderr.slice(0, 500)}`)
-        }
-        reject(new Error(errMsg + (stderr ? `. stderr snippet: ${stderr.slice(0, 200)}` : '')))
-        return
-      }
-      
-      resolve({ stdout, stderr })
-    })
-    
-    child.on('error', (err) => {
-      clearTimeout(timeout)
-      console.error(`[ytdlp] spawn error:`, err)
-      reject(new Error(`Failed to spawn yt-dlp: ${err.message}. Ensure yt-dlp is installed and YTDLP_PATH is set correctly if needed.`))
-    })
-  })
-}
-
 export async function runYtDlp(options: YtDlpOptions): Promise<any> {
   // Check if we're on Vercel - provide clear error message
   if (isVercel) {
@@ -153,33 +68,50 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
   }
 
   const { url, getInfo, format } = options
+  const ytdlp = getYtDlpPath()
 
   if (getInfo) {
     try {
-      // Get video info in JSON format using spawn for robustness
-      // Use -j (lowercase) which returns JSON line-by-line for playlists
-      const { stdout } = await spawnYtDlp(['-j', '--no-warnings', '--no-playlist', url])
+      // Get video info in JSON format. Use -J which returns JSON for single videos or playlists.
+  const execOpts = { maxBuffer: 10 * 1024 * 1024 }
+  const { stdout, stderr } = await execAsync(`${ytdlp} -J --no-warnings "${url}"`, execOpts)
 
-      // Parse JSON - if multiple JSON objects (one per line), take the first one
+      // Parse JSON and handle playlists (take first entry)
       let raw: any
       try {
-        const lines = stdout.trim().split('\n').filter(line => line.trim().length > 0)
-        const jsonLine = lines[0] || '{}'
-        raw = JSON.parse(jsonLine)
+        raw = JSON.parse(stdout)
       } catch (e: unknown) {
+        // If parsing failed, include stderr in the error to help debugging
         const parseErr = e instanceof Error ? e : new Error(String(e))
-        console.error(`[ytdlp] Failed to parse JSON output:`, parseErr)
-        throw new Error(`Failed to parse yt-dlp JSON output: ${parseErr.message}`)
+        throw new Error(`Failed to parse yt-dlp JSON output: ${parseErr.message}. stderr: ${stderr || 'none'}`)
+      }
+
+      let info: any = Array.isArray(raw?.entries) && raw.entries.length > 0 ? raw.entries[0] : raw
+
+      // If info looks incomplete (no title or no formats), try a fallback that disables playlists
+      const looksIncomplete = !info || !info.title || !(info.formats && info.formats.length)
+      if (looksIncomplete) {
+        try {
+          const { stdout: stdout2, stderr: stderr2 } = await execAsync(`${ytdlp} -J --no-warnings --no-playlist "${url}"`, execOpts)
+          const raw2 = JSON.parse(stdout2)
+          const info2 = Array.isArray(raw2?.entries) && raw2.entries.length > 0 ? raw2.entries[0] : raw2
+          if (info2 && (info2.title || (info2.formats && info2.formats.length))) {
+            info = info2
+          }
+        } catch (fallbackErr) {
+          // Ignore fallback errors - we'll proceed with whatever info we have and surface a helpful error later if needed
+          // Optionally include fallback stderr in logs if available
+        }
       }
 
       // Transform to consistent format
       return {
-        title: raw.title || 'Unknown',
-        thumbnail: raw.thumbnail || raw.thumbnails?.[0]?.url || '',
-        duration: raw.duration || 0,
-        uploader: raw.uploader || raw.channel || 'Unknown',
-        view_count: raw.view_count || 0,
-        formats: (raw.formats || []).map((f: any) => ({
+        title: info.title || 'Unknown',
+        thumbnail: info.thumbnail || info.thumbnails?.[0]?.url || '',
+        duration: info.duration || 0,
+        uploader: info.uploader || info.channel || 'Unknown',
+        view_count: info.view_count || 0,
+        formats: (info.formats || []).map((f: any) => ({
           format_id: f.format_id || 'unknown',
           ext: f.ext || 'unknown',
           resolution: f.resolution || (f.height ? `${f.width}x${f.height}` : 'audio only'),
@@ -191,8 +123,8 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
         })),
       }
     } catch (error: any) {
+      // Surface more context to logs - include stderr when available on the thrown error
       const msg = error?.message || String(error)
-      console.error(`[ytdlp] Failed to get video info:`, msg)
       throw new Error(`Failed to get video info: ${msg}`)
     }
   } else {
@@ -206,24 +138,24 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
       }
 
       // Get video info first to get the title
-      const { stdout: infoStdout } = await spawnYtDlp(['-j', '--no-warnings', '--no-playlist', url])
-      const lines = infoStdout.trim().split('\n').filter(line => line.trim().length > 0)
-      const info = JSON.parse(lines[0] || '{}')
+  const execOpts = { maxBuffer: 10 * 1024 * 1024 }
+  const { stdout: infoStdout } = await execAsync(`${ytdlp} -J --no-warnings "${url}"`, execOpts)
+      const info = JSON.parse(infoStdout)
       const title = info.title || 'video'
       
       // Sanitize filename
       const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase()
       const timestamp = Date.now()
-      const outputTemplate = path.join(tempDir, `${sanitizedTitle}_${timestamp}.%(ext)s`)
+  const outputTemplate = path.join(tempDir, `${sanitizedTitle}_${timestamp}.%(ext)s`)
       
       // Download with specified format
-      const formatArg = format || 'best'
-      const downloadArgs = ['-f', formatArg, '-o', outputTemplate, '--no-warnings', url]
+      const formatArg = format ? `-f ${format}` : '-f best'
+      const command = `${ytdlp} ${formatArg} -o "${outputTemplate}" --no-warnings "${url}"`
       
-      await spawnYtDlp(downloadArgs, 300000) // 5 minute timeout for downloads
+  await execAsync(command, execOpts)
       
       // Find the downloaded file
-      const files = fs.readdirSync(tempDir).filter(f => f.startsWith(`${sanitizedTitle}_${timestamp}`))
+  const files = fs.readdirSync(tempDir).filter(f => f.startsWith(`${sanitizedTitle}_${timestamp}`))
       if (files.length === 0) {
         throw new Error('Download failed - file not found')
       }
@@ -237,9 +169,7 @@ export async function runYtDlp(options: YtDlpOptions): Promise<any> {
         ext,
       }
     } catch (error: any) {
-      const msg = error?.message || String(error)
-      console.error(`[ytdlp] Failed to download video:`, msg)
-      throw new Error(`Failed to download video: ${msg}`)
+      throw new Error(`Failed to download video: ${error.message}`)
     }
   }
 }
